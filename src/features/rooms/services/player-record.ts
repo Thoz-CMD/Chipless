@@ -5,6 +5,7 @@ export type RoomPlayerRecord = {
   displayName?: string;
   role: RoomPlayerRole;
   joinedAt?: number;
+  lastSeen?: number;
   seatIndex?: number;
   online: boolean;
 };
@@ -22,6 +23,7 @@ export function isRoomPlayerRecord(value: unknown): value is RoomPlayerRecord {
       typeof player.displayName === "string") &&
     (player.role === "host" || player.role === "player") &&
     (player.joinedAt === undefined || typeof player.joinedAt === "number") &&
+    (player.lastSeen === undefined || typeof player.lastSeen === "number") &&
     (player.seatIndex === undefined || typeof player.seatIndex === "number") &&
     typeof player.online === "boolean"
   );

@@ -21,6 +21,7 @@ import {
 } from "@/features/rooms/services/player-record";
 import { setupPlayerPresence } from "@/features/rooms/services/player-presence";
 import { repairRoomAfterPlayerLeaves } from "@/features/rooms/services/repair-room-after-player-leaves";
+import { removeStaleRoomPlayer } from "@/features/rooms/services/remove-stale-room-player";
 import {
   subscribeRoomPlayers,
   type RoomPlayerListItem,
@@ -52,6 +53,8 @@ type PlayersState =
   | { status: "loading" }
   | { status: "error"; message: string }
   | { status: "loaded"; players: RoomPlayerListItem[] };
+
+const staleOfflinePlayerMs = 30_000;
 
 function isRoomSummaryData(value: unknown): value is RoomSummaryData {
   if (!value || typeof value !== "object") {
@@ -255,6 +258,43 @@ export function RoomSummary({ roomId }: { roomId: string }) {
         repairedMissingPlayerKeys.current.delete(repairKey);
       },
     );
+  }, [loadState, playersState, roomId]);
+
+  useEffect(() => {
+    if (loadState.status !== "loaded" || playersState.status !== "loaded") {
+      return;
+    }
+
+    const removeStalePlayers = () => {
+      const now = Date.now();
+      const currentPlayerIsPresent = playersState.players.some(
+        (player) => player.uid === loadState.currentUid,
+      );
+
+      if (!currentPlayerIsPresent) {
+        return;
+      }
+
+      for (const player of playersState.players) {
+        if (
+          player.uid === loadState.currentUid ||
+          player.online ||
+          player.lastSeen === undefined ||
+          now - player.lastSeen < staleOfflinePlayerMs
+        ) {
+          continue;
+        }
+
+        void removeStaleRoomPlayer({ roomId, uid: player.uid });
+      }
+    };
+
+    removeStalePlayers();
+    const intervalId = window.setInterval(removeStalePlayers, 5_000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
   }, [loadState, playersState, roomId]);
 
   return (

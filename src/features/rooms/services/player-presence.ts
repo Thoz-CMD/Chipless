@@ -1,12 +1,17 @@
 import { FirebaseError } from "firebase/app";
-import { onDisconnect, ref, remove, set } from "firebase/database";
+import {
+  onDisconnect,
+  ref,
+  remove,
+  serverTimestamp,
+  update,
+} from "firebase/database";
 
 import { signInWithAnonymousAccount } from "@/features/auth/anonymous-auth";
 import { cleanupEmptyRoom } from "@/features/rooms/services/cleanup-empty-room";
 import { repairRoomAfterPlayerLeaves } from "@/features/rooms/services/repair-room-after-player-leaves";
 import {
   getFirebaseAuth,
-  getFirebaseDatabaseUrl,
   getRealtimeDatabase,
 } from "@/lib/firebase/client";
 
@@ -51,18 +56,29 @@ function removePlayerWithKeepalive({
   uid: string;
   idToken: string | null;
 }): void {
-  const databaseUrl = getFirebaseDatabaseUrl();
-
-  if (!databaseUrl || !idToken) {
+  if (!idToken) {
     return;
   }
 
-  const url = `${databaseUrl.replace(/\/$/, "")}/roomPlayers/${encodeURIComponent(
-    roomId,
-  )}/${encodeURIComponent(uid)}.json?auth=${encodeURIComponent(idToken)}`;
+  const body = JSON.stringify({ idToken, roomId, uid });
 
-  void fetch(url, {
-    method: "DELETE",
+  if (navigator.sendBeacon) {
+    const sent = navigator.sendBeacon(
+      "/api/leave-room",
+      new Blob([body], { type: "application/json" }),
+    );
+
+    if (sent) {
+      return;
+    }
+  }
+
+  void fetch("/api/leave-room", {
+    body,
+    headers: {
+      "content-type": "application/json",
+    },
+    method: "POST",
     keepalive: true,
   }).catch(() => {
     // The regular Firebase cleanup path remains as a fallback.
@@ -76,13 +92,19 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
       (await getFirebaseAuth().currentUser?.getIdToken().catch(() => null)) ??
       null;
     const database = getRealtimeDatabase();
-    const onlineRef = ref(database, `roomPlayers/${roomId}/${uid}/online`);
-    const disconnectOperation = onDisconnect(onlineRef);
+    const playerRef = ref(database, `roomPlayers/${roomId}/${uid}`);
+    const disconnectOperation = onDisconnect(playerRef);
     const markOnline = () => {
-      void set(onlineRef, true);
+      void update(playerRef, {
+        lastSeen: serverTimestamp(),
+        online: true,
+      });
     };
     const markOffline = () => {
-      void set(onlineRef, false);
+      void update(playerRef, {
+        lastSeen: serverTimestamp(),
+        online: false,
+      });
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -111,8 +133,14 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
         });
     };
 
-    await set(onlineRef, true);
-    await disconnectOperation.set(false);
+    await update(playerRef, {
+      lastSeen: serverTimestamp(),
+      online: true,
+    });
+    await disconnectOperation.update({
+      lastSeen: serverTimestamp(),
+      online: false,
+    });
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("online", markOnline);
     window.addEventListener("focus", refreshIdToken);
