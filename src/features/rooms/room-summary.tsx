@@ -118,11 +118,12 @@ export function RoomSummary({ roomId }: { roomId: string }) {
           throw new Error("Room not found or data is incomplete.");
         }
 
-        if (
-          !playerSnapshot.exists() ||
-          !isRoomPlayerRecord(playerValue) ||
-          hasPlaceholderName(playerValue)
-        ) {
+        if (!playerSnapshot.exists() || !isRoomPlayerRecord(playerValue)) {
+          router.replace("/");
+          return;
+        }
+
+        if (hasPlaceholderName(playerValue)) {
           router.replace(`/room/${roomId}/setup-name`);
           return;
         }

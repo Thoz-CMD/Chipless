@@ -83,7 +83,8 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
         }
 
         if (!playerSnapshot.exists() || !isRoomPlayerRecord(playerValue)) {
-          throw new Error("Player record not found.");
+          router.replace("/");
+          return;
         }
 
         if (isMounted) {
@@ -110,7 +111,7 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
     return () => {
       isMounted = false;
     };
-  }, [roomId]);
+  }, [roomId, router]);
 
   async function onSubmit(values: PlayerNameFormValues) {
     try {
