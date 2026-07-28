@@ -42,7 +42,7 @@ export function CreateRoomForm() {
     defaultValues: {
       roomName: "",
       roomPasscode: "",
-      bigBlind: 0,
+      bigBlind: undefined,
     },
   });
 
@@ -152,12 +152,12 @@ export function CreateRoomForm() {
                       className="h-14 border-white/40 bg-black/35 pl-11 text-right text-xl text-white placeholder:text-white/45 focus-visible:ring-white/40"
                       name={field.name}
                       ref={field.ref}
-                      value={field.value}
+                      value={field.value ?? ""}
                       onBlur={field.onBlur}
                       onChange={(event) =>
                         field.onChange(
                           event.target.value === ""
-                            ? 0
+                            ? undefined
                             : Number(event.target.value),
                         )
                       }
