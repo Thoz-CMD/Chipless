@@ -32,6 +32,7 @@ export function PlayerSeat({
   onDragEnd?: () => void;
 }) {
   const name = player.displayName ?? "Unnamed";
+  const isOffline = player.online === false;
 
   return (
     <div
@@ -55,7 +56,7 @@ export function PlayerSeat({
         event.preventDefault();
         onDrop?.();
       }}
-      className={`absolute w-28 -translate-x-1/2 -translate-y-1/2 ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      className={`absolute w-28 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-200 ${isOffline ? "opacity-45 grayscale" : "opacity-100"} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
       style={style}
     >
       <div className="relative mx-auto w-fit">
@@ -76,7 +77,9 @@ export function PlayerSeat({
         </div>
       </div>
 
-      <p className="mt-1 truncate text-center text-sm leading-tight font-semibold text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.85)]">
+      <p
+        className={`mt-1 truncate text-center text-sm leading-tight font-semibold drop-shadow-[0_1px_4px_rgba(0,0,0,0.85)] ${isOffline ? "text-white/55" : "text-white"}`}
+      >
         {name}
       </p>
     </div>
