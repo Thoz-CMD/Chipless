@@ -1,65 +1,81 @@
 import Image from "next/image";
+import NextLink from "next/link";
+import {
+  Link as LinkIcon,
+  LockKeyhole,
+  LogIn,
+  UserRoundPlus,
+} from "lucide-react";
+
+const backgroundSrc =
+  "/images/background/ChatGPT Image 27 ก.ค. 2569 18_21_14.png";
+const logoSrc = "/images/logo/ChatGPT Image 27 ก.ค. 2569 18_26_31.png";
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <main className="relative min-h-dvh overflow-hidden bg-black text-white">
+      <Image
+        src={backgroundSrc}
+        alt=""
+        fill
+        priority
+        sizes="100vw"
+        className="object-cover"
+      />
+
+      <div className="absolute inset-0 bg-black/10" />
+
+      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[430px] flex-col px-6 pt-[calc(env(safe-area-inset-top)+150px)] pb-[calc(env(safe-area-inset-bottom)+34px)]">
+        <div className="flex flex-1 flex-col items-center justify-start">
+          <Image
+            src={logoSrc}
+            alt="StackSplit"
+            width={280}
+            height={280}
+            priority
+            className="h-auto w-[72%] max-w-[300px] object-contain drop-shadow-[0_0_28px_rgba(255,255,255,0.32)]"
+          />
+          <h1 className="font-audiowide mt-3 text-center text-[60px] leading-none tracking-normal text-white drop-shadow-[0_0_14px_rgba(255,255,255,0.35)]">
+            Chipless
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        <section className="mb-[28vh] space-y-5">
+          <div className="grid grid-cols-2 gap-3">
+            <NextLink
+              href="/create-room"
+              className="flex h-16 items-center justify-center gap-2.5 rounded-lg border border-white/80 bg-black/70 px-2.5 text-[15px] font-semibold shadow-[0_0_18px_rgba(255,255,255,0.08)] backdrop-blur-sm transition-colors hover:bg-black/85 focus:ring-2 focus:ring-white/70 focus:outline-none"
+            >
+              <UserRoundPlus className="size-6 shrink-0" aria-hidden="true" />
+              <span>Create Room</span>
+            </NextLink>
+
+            <NextLink
+              href="/join-room"
+              className="flex h-16 items-center justify-center gap-2.5 rounded-lg border border-white bg-white px-2.5 text-[15px] font-semibold text-black shadow-[0_0_20px_rgba(255,255,255,0.18)] transition-colors hover:bg-neutral-100 focus:ring-2 focus:ring-white/80 focus:outline-none"
+            >
+              <LogIn className="size-6 shrink-0" aria-hidden="true" />
+              <span>Join Room</span>
+            </NextLink>
+          </div>
+
+          <div className="relative grid grid-cols-2 gap-3 text-[10px] leading-snug text-white/68">
+            <div
+              className="absolute top-1/2 left-1/2 h-6 w-px -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/55"
+              aria-hidden="true"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            <p className="flex items-center justify-center gap-2">
+              <LinkIcon className="size-4 shrink-0" aria-hidden="true" />
+              <span>Share a link to invite players</span>
+            </p>
+
+            <p className="flex items-center justify-center gap-2">
+              <LockKeyhole className="size-4 shrink-0" aria-hidden="true" />
+              <span>Enter a passcode to join</span>
+            </p>
+          </div>
+        </section>
+      </div>
+    </main>
   );
 }
