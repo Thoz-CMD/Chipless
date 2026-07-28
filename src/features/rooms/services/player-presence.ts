@@ -43,18 +43,24 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
     const uid = await getSignedInUid();
     const database = getRealtimeDatabase();
     const onlineRef = ref(database, `roomPlayers/${roomId}/${uid}/online`);
-    const playerRef = ref(database, `roomPlayers/${roomId}/${uid}`);
-    const disconnectOperation = onDisconnect(playerRef);
-    const handlePageHide = () => {
-      void removePlayerAndDeleteEmptyRoom(roomId, uid);
+    const disconnectOperation = onDisconnect(onlineRef);
+    const markOnline = () => {
+      void set(onlineRef, true);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        markOnline();
+      }
     };
 
     await set(onlineRef, true);
-    await disconnectOperation.remove();
-    window.addEventListener("pagehide", handlePageHide);
+    await disconnectOperation.set(false);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("online", markOnline);
 
     return () => {
-      window.removeEventListener("pagehide", handlePageHide);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("online", markOnline);
       void disconnectOperation.cancel();
       void removePlayerAndDeleteEmptyRoom(roomId, uid);
     };
