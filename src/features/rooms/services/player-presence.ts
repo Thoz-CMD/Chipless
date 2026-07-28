@@ -4,7 +4,11 @@ import { onDisconnect, ref, remove, set } from "firebase/database";
 import { signInWithAnonymousAccount } from "@/features/auth/anonymous-auth";
 import { cleanupEmptyRoom } from "@/features/rooms/services/cleanup-empty-room";
 import { repairRoomAfterPlayerLeaves } from "@/features/rooms/services/repair-room-after-player-leaves";
-import { getFirebaseAuth, getRealtimeDatabase } from "@/lib/firebase/client";
+import {
+  getFirebaseAuth,
+  getFirebaseDatabaseUrl,
+  getRealtimeDatabase,
+} from "@/lib/firebase/client";
 
 export class PlayerPresenceError extends Error {
   readonly code?: string;
@@ -38,9 +42,39 @@ async function removePlayerAndDeleteEmptyRoom(
   await cleanupEmptyRoom(roomId);
 }
 
+function removePlayerWithKeepalive({
+  roomId,
+  uid,
+  idToken,
+}: {
+  roomId: string;
+  uid: string;
+  idToken: string | null;
+}): void {
+  const databaseUrl = getFirebaseDatabaseUrl();
+
+  if (!databaseUrl || !idToken) {
+    return;
+  }
+
+  const url = `${databaseUrl.replace(/\/$/, "")}/roomPlayers/${encodeURIComponent(
+    roomId,
+  )}/${encodeURIComponent(uid)}.json?auth=${encodeURIComponent(idToken)}`;
+
+  void fetch(url, {
+    method: "DELETE",
+    keepalive: true,
+  }).catch(() => {
+    // The regular Firebase cleanup path remains as a fallback.
+  });
+}
+
 export async function setupPlayerPresence(roomId: string): Promise<() => void> {
   try {
     const uid = await getSignedInUid();
+    let cachedIdToken =
+      (await getFirebaseAuth().currentUser?.getIdToken().catch(() => null)) ??
+      null;
     const database = getRealtimeDatabase();
     const onlineRef = ref(database, `roomPlayers/${roomId}/${uid}/online`);
     const disconnectOperation = onDisconnect(onlineRef);
@@ -63,18 +97,31 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
         return;
       }
 
+      removePlayerWithKeepalive({ roomId, uid, idToken: cachedIdToken });
       void removePlayerAndDeleteEmptyRoom(roomId, uid);
+    };
+    const refreshIdToken = () => {
+      void getFirebaseAuth()
+        .currentUser?.getIdToken()
+        .then((token) => {
+          cachedIdToken = token;
+        })
+        .catch(() => {
+          cachedIdToken = null;
+        });
     };
 
     await set(onlineRef, true);
     await disconnectOperation.set(false);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("online", markOnline);
+    window.addEventListener("focus", refreshIdToken);
     window.addEventListener("pagehide", handlePageHide);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("online", markOnline);
+      window.removeEventListener("focus", refreshIdToken);
       window.removeEventListener("pagehide", handlePageHide);
       void disconnectOperation.cancel();
       void removePlayerAndDeleteEmptyRoom(roomId, uid);

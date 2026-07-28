@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -20,6 +20,7 @@ import {
   isRoomPlayerRecord,
 } from "@/features/rooms/services/player-record";
 import { setupPlayerPresence } from "@/features/rooms/services/player-presence";
+import { repairRoomAfterPlayerLeaves } from "@/features/rooms/services/repair-room-after-player-leaves";
 import {
   subscribeRoomPlayers,
   type RoomPlayerListItem,
@@ -79,6 +80,7 @@ function isRoomSummaryData(value: unknown): value is RoomSummaryData {
 
 export function RoomSummary({ roomId }: { roomId: string }) {
   const router = useRouter();
+  const repairedMissingPlayerKeys = useRef(new Set<string>());
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [playersState, setPlayersState] = useState<PlayersState>({
     status: "loading",
@@ -220,6 +222,40 @@ export function RoomSummary({ roomId }: { roomId: string }) {
       cleanupPresence?.();
     };
   }, [loadState.status, roomId]);
+
+  useEffect(() => {
+    if (loadState.status !== "loaded" || playersState.status !== "loaded") {
+      return;
+    }
+
+    const playerUids = new Set(playersState.players.map((player) => player.uid));
+    const staleHostUid = playerUids.has(loadState.room.hostUid)
+      ? null
+      : loadState.room.hostUid;
+    const currentBigBlindUid = loadState.room.gameState?.currentBigBlindUid;
+    const staleBigBlindUid =
+      currentBigBlindUid && !playerUids.has(currentBigBlindUid)
+        ? currentBigBlindUid
+        : null;
+    const staleUid = staleHostUid ?? staleBigBlindUid;
+
+    if (!staleUid || !playerUids.has(loadState.currentUid)) {
+      return;
+    }
+
+    const repairKey = `${roomId}:${staleUid}`;
+
+    if (repairedMissingPlayerKeys.current.has(repairKey)) {
+      return;
+    }
+
+    repairedMissingPlayerKeys.current.add(repairKey);
+    void repairRoomAfterPlayerLeaves({ roomId, leavingUid: staleUid }).catch(
+      () => {
+        repairedMissingPlayerKeys.current.delete(repairKey);
+      },
+    );
+  }, [loadState, playersState, roomId]);
 
   return (
     <section>
