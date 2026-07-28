@@ -63,10 +63,14 @@ function removePlayerWithKeepalive({
   const body = JSON.stringify({ idToken, roomId, uid });
 
   if (navigator.sendBeacon) {
-    navigator.sendBeacon(
+    const sent = navigator.sendBeacon(
       "/api/leave-room",
       new Blob([body], { type: "application/json" }),
     );
+
+    if (sent) {
+      return;
+    }
   }
 
   void fetch("/api/leave-room", {
@@ -110,15 +114,13 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
 
       markOffline();
     };
-    const removeCurrentPlayer = () => {
+    const handlePageHide = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        return;
+      }
+
       removePlayerWithKeepalive({ roomId, uid, idToken: cachedIdToken });
       void removePlayerAndDeleteEmptyRoom(roomId, uid);
-    };
-    const handlePageHide = () => {
-      removeCurrentPlayer();
-    };
-    const handleBeforeUnload = () => {
-      removeCurrentPlayer();
     };
     const refreshIdToken = () => {
       void getFirebaseAuth()
@@ -143,14 +145,12 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
     window.addEventListener("online", markOnline);
     window.addEventListener("focus", refreshIdToken);
     window.addEventListener("pagehide", handlePageHide);
-    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("online", markOnline);
       window.removeEventListener("focus", refreshIdToken);
       window.removeEventListener("pagehide", handlePageHide);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
       void disconnectOperation.cancel();
       void removePlayerAndDeleteEmptyRoom(roomId, uid);
     };
