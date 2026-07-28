@@ -137,7 +137,10 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
       lastSeen: serverTimestamp(),
       online: true,
     });
-    await disconnectOperation.remove();
+    await disconnectOperation.update({
+      lastSeen: serverTimestamp(),
+      online: false,
+    });
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("online", markOnline);
     window.addEventListener("focus", refreshIdToken);

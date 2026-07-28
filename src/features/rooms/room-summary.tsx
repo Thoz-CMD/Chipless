@@ -54,7 +54,7 @@ type PlayersState =
   | { status: "error"; message: string }
   | { status: "loaded"; players: RoomPlayerListItem[] };
 
-const staleOfflinePlayerMs = 30_000;
+const staleOfflinePlayerMs = 5 * 60 * 1_000;
 
 function isRoomSummaryData(value: unknown): value is RoomSummaryData {
   if (!value || typeof value !== "object") {
