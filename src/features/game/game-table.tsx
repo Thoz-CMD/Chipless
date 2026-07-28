@@ -116,6 +116,7 @@ export function GameTable({
   roomId,
   players,
   currentUid,
+  hostUid,
   canArrangeSeats,
   potAmount,
   currentPlayerContribution,
@@ -128,6 +129,7 @@ export function GameTable({
   roomId: string;
   players: RoomPlayerListItem[];
   currentUid: string;
+  hostUid: string;
   canArrangeSeats: boolean;
   potAmount: number;
   currentPlayerContribution?: number;
@@ -140,8 +142,13 @@ export function GameTable({
   const [draggingUid, setDraggingUid] = useState<string | null>(null);
   const [dragTargetUid, setDragTargetUid] = useState<string | null>(null);
   const seatedPlayers = orderPlayersForSeats(players, currentUid);
-  const hostUid = players.find((player) => player.role === "host")?.uid;
-  const bigBlindUid = currentBigBlindUid ?? hostUid;
+  const playerUids = new Set(players.map((player) => player.uid));
+  const bigBlindUid =
+    currentBigBlindUid && playerUids.has(currentBigBlindUid)
+      ? currentBigBlindUid
+      : playerUids.has(hostUid)
+        ? hostUid
+        : players[0]?.uid;
   const hasActionInCurrentRound =
     bettingRound !== undefined &&
     actionLog?.some((entry) => entry.bettingRound === bettingRound);

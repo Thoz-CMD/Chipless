@@ -136,21 +136,25 @@ export async function repairRoomAfterPlayerLeaves({
     return;
   }
 
+  const nextBigBlindUid =
+    getNextBigBlindUid(roomValue, allPlayers, remainingPlayers) ?? nextHostUid;
   const updates: Record<string, unknown> = {
     [`rooms/${roomId}/hostUid`]: nextHostUid,
     [`roomSecrets/${roomId}/hostUid`]: nextHostUid,
     [`rooms/${roomId}/updatedAt`]: serverTimestamp(),
   };
 
+  if (roomValue.gameState?.handNumber !== undefined) {
+    updates[`rooms/${roomId}/gameState/currentBigBlindUid`] = nextBigBlindUid;
+  }
+
   if (roomValue.status === "playing") {
     if (remainingPlayers.length < 2) {
       updates[`rooms/${roomId}/status`] = "waiting";
       updates[`rooms/${roomId}/gameState/hand`] = null;
-      updates[`rooms/${roomId}/gameState/currentBigBlindUid`] = nextHostUid;
+      updates[`rooms/${roomId}/gameState/currentBigBlindUid`] =
+        nextBigBlindUid;
     } else {
-      const nextBigBlindUid =
-        getNextBigBlindUid(roomValue, allPlayers, remainingPlayers) ??
-        nextHostUid;
       const dealerPosition = getDealerPositionForBigBlind(
         remainingPlayers,
         nextBigBlindUid,

@@ -113,6 +113,7 @@ export function GameRoomView({
         roomId={room.id}
         players={players}
         currentUid={currentUid}
+        hostUid={room.hostUid}
         canArrangeSeats={isHost}
         potAmount={holdemGameState?.pot ?? room.settings.bigBlind}
         currentPlayerContribution={
