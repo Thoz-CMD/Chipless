@@ -232,6 +232,21 @@ export function RoomSummary({ roomId }: { roomId: string }) {
       return;
     }
 
+    const currentPlayerIsPresent = playersState.players.some(
+      (player) => player.uid === loadState.currentUid,
+    );
+
+    if (!currentPlayerIsPresent) {
+      router.replace("/");
+      return;
+    }
+  }, [loadState, playersState, router]);
+
+  useEffect(() => {
+    if (loadState.status !== "loaded" || playersState.status !== "loaded") {
+      return;
+    }
+
     const playerUids = new Set(playersState.players.map((player) => player.uid));
     const staleHostUid = playerUids.has(loadState.room.hostUid)
       ? null
