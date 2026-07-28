@@ -47,10 +47,16 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
     const markOnline = () => {
       void set(onlineRef, true);
     };
+    const markOffline = () => {
+      void set(onlineRef, false);
+    };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         markOnline();
+        return;
       }
+
+      markOffline();
     };
 
     await set(onlineRef, true);
