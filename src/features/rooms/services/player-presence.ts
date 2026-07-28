@@ -58,15 +58,24 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
 
       markOffline();
     };
+    const handlePageHide = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        return;
+      }
+
+      void removePlayerAndDeleteEmptyRoom(roomId, uid);
+    };
 
     await set(onlineRef, true);
     await disconnectOperation.set(false);
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("online", markOnline);
+    window.addEventListener("pagehide", handlePageHide);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("online", markOnline);
+      window.removeEventListener("pagehide", handlePageHide);
       void disconnectOperation.cancel();
       void removePlayerAndDeleteEmptyRoom(roomId, uid);
     };
