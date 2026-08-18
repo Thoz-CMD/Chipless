@@ -10,10 +10,7 @@ import {
 import { signInWithAnonymousAccount } from "@/features/auth/anonymous-auth";
 import { cleanupEmptyRoom } from "@/features/rooms/services/cleanup-empty-room";
 import { repairRoomAfterPlayerLeaves } from "@/features/rooms/services/repair-room-after-player-leaves";
-import {
-  getFirebaseAuth,
-  getRealtimeDatabase,
-} from "@/lib/firebase/client";
+import { getFirebaseAuth, getRealtimeDatabase } from "@/lib/firebase/client";
 
 export class PlayerPresenceError extends Error {
   readonly code?: string;
@@ -89,8 +86,9 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
   try {
     const uid = await getSignedInUid();
     let cachedIdToken =
-      (await getFirebaseAuth().currentUser?.getIdToken().catch(() => null)) ??
-      null;
+      (await getFirebaseAuth()
+        .currentUser?.getIdToken()
+        .catch(() => null)) ?? null;
     const database = getRealtimeDatabase();
     const playerRef = ref(database, `roomPlayers/${roomId}/${uid}`);
     const disconnectOperation = onDisconnect(playerRef);
@@ -114,13 +112,8 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
 
       markOffline();
     };
-    const handlePageHide = (event: PageTransitionEvent) => {
-      if (event.persisted) {
-        return;
-      }
-
-      removePlayerWithKeepalive({ roomId, uid, idToken: cachedIdToken });
-      void removePlayerAndDeleteEmptyRoom(roomId, uid);
+    const handlePageHide = () => {
+      markOffline();
     };
     const refreshIdToken = () => {
       void getFirebaseAuth()
@@ -152,7 +145,7 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
       window.removeEventListener("focus", refreshIdToken);
       window.removeEventListener("pagehide", handlePageHide);
       void disconnectOperation.cancel();
-      void removePlayerAndDeleteEmptyRoom(roomId, uid);
+      markOffline();
     };
   } catch (error) {
     if (error instanceof FirebaseError) {

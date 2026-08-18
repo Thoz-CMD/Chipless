@@ -13,7 +13,7 @@ type RoomRecord = {
   id: string;
   name: string;
   hostUid: string;
-  status: "waiting";
+  status: "waiting" | "playing";
   settings: {
     bigBlind: number;
   };
@@ -64,7 +64,7 @@ function isRoomRecord(value: unknown): value is RoomRecord {
     typeof room.id === "string" &&
     typeof room.name === "string" &&
     typeof room.hostUid === "string" &&
-    room.status === "waiting" &&
+    (room.status === "waiting" || room.status === "playing") &&
     Boolean(settings) &&
     typeof settings?.bigBlind === "number"
   );
@@ -107,7 +107,7 @@ export async function joinRoom(values: JoinRoomInput): Promise<JoinedRoom> {
           ? roomValue.status
           : undefined;
 
-      if (status !== "waiting") {
+      if (status !== "waiting" && status !== "playing") {
         throw new JoinRoomError("This room is no longer available", {
           code: "room-not-available",
         });
@@ -124,7 +124,7 @@ export async function joinRoom(values: JoinRoomInput): Promise<JoinedRoom> {
     const storedPasscodeHash: unknown = passcodeHashSnapshot.val();
 
     if (typeof storedPasscodeHash !== "string") {
-      throw new JoinRoomError("Room passcode is not available", {
+      throw new JoinRoomError("Room PIN is not available", {
         code: "passcode-unavailable",
       });
     }
@@ -132,7 +132,7 @@ export async function joinRoom(values: JoinRoomInput): Promise<JoinedRoom> {
     const enteredPasscodeHash = await sha256Hex(values.roomPasscode);
 
     if (enteredPasscodeHash !== storedPasscodeHash) {
-      throw new JoinRoomError("Incorrect room passcode", {
+      throw new JoinRoomError("Incorrect room PIN", {
         code: "incorrect-passcode",
       });
     }

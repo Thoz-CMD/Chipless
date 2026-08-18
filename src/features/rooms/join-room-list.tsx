@@ -93,11 +93,6 @@ export function JoinRoomList({ initialRoomId }: { initialRoomId?: string }) {
           return;
         }
 
-        if (room.status !== "waiting") {
-          toast.info("Game already started.");
-          return;
-        }
-
         setSelectedRoom(room);
         setDialogOpen(true);
       })
@@ -125,10 +120,6 @@ export function JoinRoomList({ initialRoomId }: { initialRoomId?: string }) {
   }
 
   function selectRoom(room: WaitingRoomListItem) {
-    if (room.status === "playing") {
-      return;
-    }
-
     setSelectedRoom(room);
     setDialogOpen(true);
   }
@@ -184,9 +175,16 @@ export function JoinRoomList({ initialRoomId }: { initialRoomId?: string }) {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="truncate text-lg font-bold text-white">
-                      {room.name}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="truncate text-lg font-bold text-white">
+                        {room.name}
+                      </h3>
+                      {room.status === "playing" ? (
+                        <span className="shrink-0 rounded border border-emerald-500/30 bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
+                          In Game
+                        </span>
+                      ) : null}
+                    </div>
                     <p className="mt-1 text-xs tracking-[0.18em] text-white/45 uppercase">
                       {room.id}
                     </p>
@@ -201,19 +199,13 @@ export function JoinRoomList({ initialRoomId }: { initialRoomId?: string }) {
                     <UsersRound className="size-4" aria-hidden="true" />
                     {room.playerCount} player{room.playerCount === 1 ? "" : "s"}
                   </p>
-                  {room.status !== "playing" ? (
-                    <Button
-                      type="button"
-                      onClick={() => selectRoom(room)}
-                      className="h-10 rounded-lg border border-white bg-white px-4 font-bold text-black hover:bg-neutral-100"
-                    >
-                      Join Room
-                    </Button>
-                  ) : (
-                    <div className="flex h-10 items-center rounded-lg border border-white/25 bg-white/10 px-4 text-sm font-bold text-white/65">
-                      Game started
-                    </div>
-                  )}
+                  <Button
+                    type="button"
+                    onClick={() => selectRoom(room)}
+                    className="h-10 rounded-lg border border-white bg-white px-4 font-bold text-black hover:bg-neutral-100"
+                  >
+                    Join Room
+                  </Button>
                 </div>
               </article>
             ))}

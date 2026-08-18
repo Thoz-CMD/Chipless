@@ -60,8 +60,7 @@ function getNextBigBlindUid(
   allPlayers: RoomPlayerRecord[],
   remainingPlayers: RoomPlayerRecord[],
 ): string | null {
-  const currentBigBlindUid =
-    room.gameState?.currentBigBlindUid ?? room.hostUid;
+  const currentBigBlindUid = room.gameState?.currentBigBlindUid ?? room.hostUid;
 
   if (remainingPlayers.some((player) => player.uid === currentBigBlindUid)) {
     return currentBigBlindUid;
@@ -152,8 +151,7 @@ export async function repairRoomAfterPlayerLeaves({
     if (remainingPlayers.length < 2) {
       updates[`rooms/${roomId}/status`] = "waiting";
       updates[`rooms/${roomId}/gameState/hand`] = null;
-      updates[`rooms/${roomId}/gameState/currentBigBlindUid`] =
-        nextBigBlindUid;
+      updates[`rooms/${roomId}/gameState/currentBigBlindUid`] = nextBigBlindUid;
     } else {
       const dealerPosition = getDealerPositionForBigBlind(
         remainingPlayers,
@@ -169,8 +167,7 @@ export async function repairRoomAfterPlayerLeaves({
         bigBlind: roomValue.settings.bigBlind,
       });
 
-      updates[`rooms/${roomId}/gameState/currentBigBlindUid`] =
-        nextBigBlindUid;
+      updates[`rooms/${roomId}/gameState/currentBigBlindUid`] = nextBigBlindUid;
       updates[`rooms/${roomId}/gameState/hand`] = nextHand;
     }
   }

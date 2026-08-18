@@ -50,7 +50,11 @@ async function deleteIfRoomEmpty({
   roomId: string;
   idToken: string;
 }): Promise<void> {
-  const playersUrl = buildDatabaseUrl(databaseUrl, `roomPlayers/${roomId}`, idToken);
+  const playersUrl = buildDatabaseUrl(
+    databaseUrl,
+    `roomPlayers/${roomId}`,
+    idToken,
+  );
   const playersResponse = await fetch(playersUrl, { cache: "no-store" });
 
   if (!playersResponse.ok) {
@@ -86,7 +90,10 @@ export async function POST(request: Request) {
   const payload: unknown = await request.json().catch(() => null);
 
   if (!isLeaveRoomPayload(payload)) {
-    return NextResponse.json({ error: "Invalid leave room payload." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid leave room payload." },
+      { status: 400 },
+    );
   }
 
   const roomId = encodeURIComponent(payload.roomId);

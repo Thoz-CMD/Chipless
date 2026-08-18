@@ -13,6 +13,7 @@ export const playerNameSchema = z.object({
         !reservedPlayerNames.includes(value.toLowerCase() as "host" | "player"),
       'Name cannot be "Host" or "Player".',
     ),
+  photoUrl: z.string().optional(),
 });
 
 export type PlayerNameFormValues = z.infer<typeof playerNameSchema>;

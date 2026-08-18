@@ -1,19 +1,31 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useState } from "react";
 
 import { ActionPanel } from "@/features/game/action-panel";
+import { ChangeNameDialog } from "@/features/game/change-name-dialog";
 import { GameHeader } from "@/features/game/game-header";
 import { GameTable } from "@/features/game/game-table";
+import { PlayerSummaryDialog } from "@/features/game/player-summary-dialog";
 import { RoomScoreboardDialog } from "@/features/game/room-scoreboard-dialog";
 import type { HoldemGameState } from "@/features/game/logic/texas-holdem";
 import { useGameSoundEffects } from "@/features/game/use-game-sound-effects";
 import { WinnerSelectDialog } from "@/features/game/winner-select-dialog";
+import { getActiveWinStreaks } from "@/features/game/logic/win-streaks";
 import {
   startGame,
   StartGameError,
 } from "@/features/rooms/services/start-game";
+import {
+  deleteRoom,
+  DeleteRoomError,
+} from "@/features/rooms/services/delete-room";
+import {
+  kickPlayer,
+  KickPlayerError,
+} from "@/features/rooms/services/kick-player";
 import type { HandSettlement } from "@/features/rooms/services/settle-hand";
 import type { RoomPlayerListItem } from "@/features/rooms/services/subscribe-room-players";
 
@@ -42,13 +54,22 @@ export function GameRoomView({
   players: RoomPlayerListItem[];
   currentUid: string;
 }) {
+  const router = useRouter();
   const [isStartingGame, setIsStartingGame] = useState(false);
+  const [isDeletingRoom, setIsDeletingRoom] = useState(false);
   const [isScoreboardOpen, setIsScoreboardOpen] = useState(false);
+  const [isChangeNameOpen, setIsChangeNameOpen] = useState(false);
+  const [isKicking, setIsKicking] = useState(false);
+  const [selectedPlayerForSummary, setSelectedPlayerForSummary] =
+    useState<RoomPlayerListItem | null>(null);
   const isHost = room.hostUid === currentUid;
   const isGameStarted = room.status === "playing";
   const holdemGameState = room.gameState?.hand ?? null;
   const handNumber = room.gameState?.handNumber ?? 1;
   const settlements = room.gameState?.settlements ?? {};
+  const currentPlayerData = players.find((player) => player.uid === currentUid);
+  const currentDisplayName = currentPlayerData?.displayName ?? "";
+  const currentPhotoUrl = currentPlayerData?.photoUrl;
   const latestSettlement = Object.values(settlements).sort(
     (first, second) => second.handNumber - first.handNumber,
   )[0];
@@ -59,6 +80,14 @@ export function GameRoomView({
       : undefined;
   const shouldShowWinnerDialog =
     isHost && holdemGameState?.bettingRound === "showdown";
+
+  const winStreaksByUid = getActiveWinStreaks(settlements);
+
+  const foldedUids = new Set(
+    holdemGameState?.players
+      ?.filter((player) => player.hasFolded)
+      .map((player) => player.uid) ?? [],
+  );
 
   useGameSoundEffects({
     roomId: room.id,
@@ -100,12 +129,69 @@ export function GameRoomView({
     }
   }
 
+  async function handleKickPlayer() {
+    if (!selectedPlayerForSummary || isKicking) {
+      return;
+    }
+
+    setIsKicking(true);
+    const targetDisplayName = selectedPlayerForSummary.displayName;
+
+    try {
+      await kickPlayer({
+        roomId: room.id,
+        targetUid: selectedPlayerForSummary.uid,
+      });
+      toast.success(`${targetDisplayName} has been removed from the room.`);
+      setSelectedPlayerForSummary(null);
+    } catch (error) {
+      const message =
+        error instanceof KickPlayerError || error instanceof Error
+          ? error.message
+          : "Unable to kick player.";
+      toast.error(message);
+    } finally {
+      setIsKicking(false);
+    }
+  }
+
+  async function handleDeleteRoom() {
+    if (!isHost || isDeletingRoom) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete room "${room.name}"?\n\nThis will remove the room and disconnect all players.`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingRoom(true);
+
+    try {
+      await deleteRoom(room.id);
+      toast.success("Room deleted.");
+      router.replace("/");
+    } catch (error) {
+      const message =
+        error instanceof DeleteRoomError || error instanceof Error
+          ? error.message
+          : "Unable to delete room.";
+      toast.error(message);
+      setIsDeletingRoom(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <GameHeader
         roomName={room.name}
         playerCount={players.length}
         onCopyInviteLink={copyInviteLink}
+        onDeleteRoom={isHost ? handleDeleteRoom : undefined}
+        isDeletingRoom={isDeletingRoom}
         onOpenMenu={() => setIsScoreboardOpen(true)}
       />
 
@@ -126,11 +212,14 @@ export function GameRoomView({
             ? undefined
             : holdemGameState.players[holdemGameState.currentTurn]?.uid
         }
+        foldedUids={foldedUids}
         actionLog={
           isGameStarted ? (holdemGameState?.actionLog ?? []) : undefined
         }
         bettingRound={holdemGameState?.bettingRound}
         latestWinnerName={recentlySettledWinnerName}
+        winStreaksByUid={winStreaksByUid}
+        onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
       />
 
       {isGameStarted ? (
@@ -171,6 +260,34 @@ export function GameRoomView({
         players={players}
         settlements={settlements}
         currentUid={currentUid}
+        onChangeName={() => setIsChangeNameOpen(true)}
+        onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
+      />
+
+      <PlayerSummaryDialog
+        key={selectedPlayerForSummary?.uid ?? "empty"}
+        open={selectedPlayerForSummary !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedPlayerForSummary(null);
+          }
+        }}
+        targetPlayer={selectedPlayerForSummary}
+        settlements={settlements}
+        players={players}
+        currentUid={currentUid}
+        hostUid={room.hostUid}
+        onEditProfile={() => setIsChangeNameOpen(true)}
+        onKick={handleKickPlayer}
+        isKicking={isKicking}
+      />
+
+      <ChangeNameDialog
+        roomId={room.id}
+        currentDisplayName={currentDisplayName}
+        currentPhotoUrl={currentPhotoUrl}
+        open={isChangeNameOpen}
+        onOpenChange={setIsChangeNameOpen}
       />
 
       {holdemGameState ? (

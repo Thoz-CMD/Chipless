@@ -7,6 +7,8 @@ export function PlayerSeat({
   isCurrentUser,
   isBigBlind,
   isCurrentTurn,
+  hasFolded,
+  winStreak,
   style,
   draggable,
   isSelected,
@@ -21,6 +23,8 @@ export function PlayerSeat({
   isCurrentUser: boolean;
   isBigBlind: boolean;
   isCurrentTurn: boolean;
+  hasFolded?: boolean;
+  winStreak?: number;
   style: CSSProperties;
   draggable?: boolean;
   isSelected?: boolean;
@@ -56,10 +60,15 @@ export function PlayerSeat({
         event.preventDefault();
         onDrop?.();
       }}
-      className={`absolute w-28 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-200 ${isOffline ? "opacity-45 grayscale" : "opacity-100"} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      className={`group absolute w-28 -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 select-none ${hasFolded ? "opacity-60 grayscale-[0.3]" : isOffline ? "opacity-45 grayscale" : "opacity-100"} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
       style={style}
+      title={
+        draggable
+          ? "Drag to rearrange seats or click for summary"
+          : `Click to view ${name}'s summary`
+      }
     >
-      <div className="relative mx-auto w-fit">
+      <div className="relative mx-auto w-fit transition-transform duration-150 group-hover:scale-105">
         <div
           className={
             isSelected || isDragTarget
@@ -70,15 +79,18 @@ export function PlayerSeat({
           <PlayerAvatar
             uid={player.uid}
             name={name}
+            photoUrl={player.photoUrl}
+            winStreak={winStreak}
             isCurrentUser={isCurrentUser}
             isBigBlind={isBigBlind}
             isCurrentTurn={isCurrentTurn}
+            hasFolded={hasFolded}
           />
         </div>
       </div>
 
       <p
-        className={`mt-1 truncate text-center text-sm leading-tight font-semibold drop-shadow-[0_1px_4px_rgba(0,0,0,0.85)] ${isOffline ? "text-white/55" : "text-white"}`}
+        className={`mt-1 truncate text-center text-sm leading-tight font-semibold drop-shadow-[0_1px_4px_rgba(0,0,0,0.85)] group-hover:text-white ${hasFolded ? "text-red-300/80 line-through" : isOffline ? "text-white/55" : "text-white"}`}
       >
         {name}
       </p>

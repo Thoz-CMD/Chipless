@@ -8,6 +8,7 @@ import type { CreateRoomFormValues } from "@/lib/validations/create-room";
 
 type CreateRoomInput = CreateRoomFormValues & {
   hostDisplayName: string;
+  photoUrl?: string;
 };
 
 const roomIdAlphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -79,6 +80,7 @@ export async function createRoom(
       [`roomPlayers/${roomId}/${uid}`]: {
         uid,
         displayName: values.hostDisplayName,
+        ...(values.photoUrl ? { photoUrl: values.photoUrl } : {}),
         role: "host",
         joinedAt: timestamp,
         online: true,

@@ -115,7 +115,7 @@
       "$roomId": {
         ".read": "auth != null",
         "$uid": {
-          ".write": "auth != null && (($uid === auth.uid && (!newData.exists() || newData.child('uid').val() === auth.uid)) || (!newData.exists() && data.child('online').val() === false && root.child('roomPlayers').child($roomId).child(auth.uid).exists()))",
+          ".write": "auth != null && (($uid === auth.uid && (!newData.exists() || newData.child('uid').val() === auth.uid)) || (!newData.exists() && data.child('online').val() === false && root.child('roomPlayers').child($roomId).child(auth.uid).exists()) || (!newData.exists() && root.child('rooms').child($roomId).child('hostUid').val() === auth.uid && $uid !== auth.uid))",
           ".validate": "newData.hasChildren(['uid', 'role', 'joinedAt', 'online'])",
           "uid": {
             ".validate": "newData.isString() && newData.val() === $uid"
@@ -138,6 +138,9 @@
           },
           "online": {
             ".validate": "newData.isBoolean()"
+          },
+          "photoUrl": {
+            ".validate": "newData.isString()"
           },
           "$other": {
             ".validate": false

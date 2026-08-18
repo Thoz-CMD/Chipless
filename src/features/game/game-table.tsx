@@ -122,9 +122,12 @@ export function GameTable({
   currentPlayerContribution,
   currentBigBlindUid,
   currentTurnUid,
+  foldedUids,
   actionLog,
   bettingRound,
   latestWinnerName,
+  winStreaksByUid,
+  onSelectPlayer,
 }: {
   roomId: string;
   players: RoomPlayerListItem[];
@@ -135,9 +138,12 @@ export function GameTable({
   currentPlayerContribution?: number;
   currentBigBlindUid?: string;
   currentTurnUid?: string;
+  foldedUids?: Set<string>;
   actionLog?: HoldemActionLogEntry[];
   bettingRound?: BettingRound;
   latestWinnerName?: string;
+  winStreaksByUid?: Record<string, number>;
+  onSelectPlayer?: (player: RoomPlayerListItem) => void;
 }) {
   const [draggingUid, setDraggingUid] = useState<string | null>(null);
   const [dragTargetUid, setDragTargetUid] = useState<string | null>(null);
@@ -230,19 +236,42 @@ export function GameTable({
                 {revealStatus}
               </div>
             ) : null}
-            {(actionLog ?? []).slice(-3).map((entry) => (
-              <div
-                key={entry.id}
-                className="flex w-full items-center justify-between gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm"
-              >
-                <span className="truncate font-semibold text-white">
-                  {entry.displayName}
-                </span>
-                <span className="shrink-0 text-white/75">
-                  {formatAction(entry)}
-                </span>
-              </div>
-            ))}
+            {(actionLog ?? [])
+              .slice(-3)
+              .reverse()
+              .map((entry, index) => {
+                const isLatest = index === 0;
+
+                return (
+                  <div
+                    key={entry.id}
+                    className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 transition-all ${
+                      isLatest
+                        ? "border-white/35 bg-white/15 py-1.5 text-sm font-bold text-white shadow-[0_0_12px_rgba(255,255,255,0.08)]"
+                        : "border-white/10 bg-white/5 py-1 text-xs text-white/60 opacity-60"
+                    }`}
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      {isLatest ? (
+                        <span
+                          className="size-1.5 shrink-0 animate-pulse rounded-full bg-yellow-300 shadow-[0_0_6px_rgba(253,224,71,0.9)]"
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                      <span className="truncate font-semibold text-white">
+                        {entry.displayName}
+                      </span>
+                    </div>
+                    <span
+                      className={`shrink-0 ${
+                        isLatest ? "font-bold text-white" : "text-white/60"
+                      }`}
+                    >
+                      {formatAction(entry)}
+                    </span>
+                  </div>
+                );
+              })}
           </div>
         ) : (
           <>
@@ -261,6 +290,8 @@ export function GameTable({
           isCurrentUser={player.uid === currentUid}
           isBigBlind={player.uid === bigBlindUid}
           isCurrentTurn={player.uid === currentTurnUid}
+          hasFolded={foldedUids?.has(player.uid)}
+          winStreak={winStreaksByUid?.[player.uid]}
           style={getSeatPosition(index, seatedPlayers.length)}
           draggable={canArrangeSeats}
           isSelected={draggingUid === player.uid}
@@ -268,16 +299,12 @@ export function GameTable({
             dragTargetUid === player.uid && draggingUid !== player.uid
           }
           onClick={() => {
-            if (!canArrangeSeats) {
+            if (draggingUid) {
+              void swapSeats(player.uid);
               return;
             }
 
-            if (!draggingUid) {
-              setDraggingUid(player.uid);
-              return;
-            }
-
-            void swapSeats(player.uid);
+            onSelectPlayer?.(player);
           }}
           onDragStart={() => {
             if (canArrangeSeats) {

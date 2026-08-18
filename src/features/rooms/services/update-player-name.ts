@@ -104,6 +104,7 @@ export async function updatePlayerName(
             [playerPath]: {
               uid,
               displayName: values.displayName,
+              ...(values.photoUrl ? { photoUrl: values.photoUrl } : {}),
               role: currentPlayer.role,
               joinedAt: serverTimestamp(),
               online: true,
@@ -112,6 +113,9 @@ export async function updatePlayerName(
         : {
             [`${playerPath}/displayName`]: values.displayName,
             [`${playerPath}/online`]: true,
+            ...(values.photoUrl
+              ? { [`${playerPath}/photoUrl`]: values.photoUrl }
+              : {}),
           };
 
     await update(ref(database), updates);

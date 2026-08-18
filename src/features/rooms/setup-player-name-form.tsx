@@ -25,6 +25,13 @@ import {
   type RoomPlayerRecord,
 } from "@/features/rooms/services/player-record";
 import { updatePlayerName } from "@/features/rooms/services/update-player-name";
+import { AvatarPicker } from "@/features/rooms/avatar-picker";
+import {
+  loadLastPlayerName,
+  loadLastPlayerPhoto,
+  saveLastPlayerName,
+  saveLastPlayerPhoto,
+} from "@/features/rooms/services/last-player-name";
 import { getFirebaseAuth, getRealtimeDatabase } from "@/lib/firebase/client";
 import {
   playerNameSchema,
@@ -50,6 +57,7 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
     resolver: zodResolver(playerNameSchema),
     defaultValues: {
       displayName: "",
+      photoUrl: "",
     },
   });
 
@@ -93,6 +101,14 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
             roomName: roomNameValue,
             player: playerValue,
           });
+
+          const initialName = playerValue.displayName || loadLastPlayerName();
+          const initialPhoto = playerValue.photoUrl || loadLastPlayerPhoto();
+
+          form.reset({
+            displayName: initialName,
+            photoUrl: initialPhoto,
+          });
         }
       } catch (error) {
         const message =
@@ -111,12 +127,14 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
     return () => {
       isMounted = false;
     };
-  }, [roomId, router]);
+  }, [form, roomId, router]);
 
   async function onSubmit(values: PlayerNameFormValues) {
     try {
+      saveLastPlayerName(values.displayName);
+      saveLastPlayerPhoto(values.photoUrl);
       await updatePlayerName(roomId, values);
-      toast.success("Name saved.");
+      toast.success("Name and profile saved.");
       router.push(`/room/${roomId}`);
     } catch (error) {
       const message =
@@ -158,11 +176,30 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
             <h2 className="mt-1 text-2xl font-bold text-white">
               {setupState.roomName}
             </h2>
-            <p className="mt-3 text-base text-white/65">Enter your name</p>
+            <p className="mt-3 text-base text-white/65">
+              Enter your name & profile
+            </p>
           </div>
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="photoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <AvatarPicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        name={form.watch("displayName")}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="displayName"

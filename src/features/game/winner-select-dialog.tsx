@@ -71,14 +71,12 @@ export function WinnerSelectDialog({
                 void handleSettleHand(player.uid);
               }}
               disabled={isSubmitting}
-              className={`flex h-12 w-full items-center justify-between rounded-lg border px-3 text-left ${
-                selectedWinnerUid === player.uid
-                  ? "border-white bg-white text-black"
-                  : "border-white/20 bg-white/5 text-white"
-              } disabled:cursor-not-allowed disabled:opacity-70`}
+              className="flex h-12 w-full items-center justify-between rounded-xl border border-white/20 bg-white/5 px-3 text-left text-white transition-colors hover:border-white/40 hover:bg-white/10 active:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <span className="font-semibold">{player.displayName}</span>
-              <span className="text-sm opacity-70">
+              <span className="font-semibold text-white">
+                {player.displayName}
+              </span>
+              <span className="text-sm text-white/65">
                 {isSubmitting && selectedWinnerUid === player.uid
                   ? "Saving..."
                   : `Bet ${player.totalContribution.toLocaleString("en-US")} THB`}

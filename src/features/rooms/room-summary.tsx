@@ -247,7 +247,9 @@ export function RoomSummary({ roomId }: { roomId: string }) {
       return;
     }
 
-    const playerUids = new Set(playersState.players.map((player) => player.uid));
+    const playerUids = new Set(
+      playersState.players.map((player) => player.uid),
+    );
     const staleHostUid = playerUids.has(loadState.room.hostUid)
       ? null
       : loadState.room.hostUid;

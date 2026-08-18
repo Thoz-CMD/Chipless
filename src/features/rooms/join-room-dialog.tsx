@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Eye, EyeOff, LockKeyhole, LogIn } from "lucide-react";
+import { LockKeyhole, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -44,7 +43,6 @@ export function JoinRoomDialog({
   open,
   onOpenChange,
 }: JoinRoomDialogProps) {
-  const [showPasscode, setShowPasscode] = useState(false);
   const router = useRouter();
 
   const form = useForm<JoinRoomPasscodeFormValues>({
@@ -57,7 +55,6 @@ export function JoinRoomDialog({
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
       form.reset();
-      setShowPasscode(false);
     }
 
     onOpenChange(nextOpen);
@@ -109,32 +106,19 @@ export function JoinRoomDialog({
                 <FormItem>
                   <FormLabel className="text-white">
                     <LockKeyhole className="size-5" aria-hidden="true" />
-                    Room Passcode
+                    Room PIN
                   </FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Input
-                        type={showPasscode ? "text" : "password"}
-                        placeholder="STACK1234"
-                        autoComplete="off"
-                        className="h-14 border-white/40 bg-black/35 pr-12 text-base text-white placeholder:text-white/45 focus-visible:ring-white/40"
-                        {...field}
-                      />
-                      <button
-                        type="button"
-                        aria-label={
-                          showPasscode ? "Hide passcode" : "Show passcode"
-                        }
-                        onClick={() => setShowPasscode((value) => !value)}
-                        className="absolute top-1/2 right-3 -translate-y-1/2 rounded-md p-1 text-white/70 transition-colors hover:text-white focus:ring-2 focus:ring-white/50 focus:outline-none"
-                      >
-                        {showPasscode ? (
-                          <EyeOff className="size-5" aria-hidden="true" />
-                        ) : (
-                          <Eye className="size-5" aria-hidden="true" />
-                        )}
-                      </button>
-                    </div>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      placeholder="1234"
+                      autoComplete="off"
+                      className="h-14 border-white/40 bg-black/35 text-base text-white placeholder:text-white/45 focus-visible:ring-white/40"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

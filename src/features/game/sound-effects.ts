@@ -10,12 +10,12 @@ const soundSources = {
 } as const;
 
 const soundVolumes = {
-  chip: 0.40,
-  card: 0.50,
-  turn: 0.50,
-  winner: 0.50,
-  check: 0.50,
-  fold: 0.50,
+  chip: 0.4,
+  card: 0.5,
+  turn: 0.5,
+  winner: 0.5,
+  check: 0.5,
+  fold: 0.5,
 } as const;
 
 type SoundName = keyof typeof soundSources;

@@ -13,7 +13,7 @@ const logoSrc = "/images/logo/ChatGPT Image 27 ก.ค. 2569 18_26_31.png";
 
 export default function Home() {
   return (
-    <main className="relative min-h-[100svh] overflow-y-auto overflow-x-hidden bg-black text-white">
+    <main className="relative min-h-[100svh] overflow-x-hidden overflow-y-auto bg-black text-white">
       <Image
         src={backgroundSrc}
         alt=""
@@ -71,7 +71,7 @@ export default function Home() {
 
             <p className="flex items-center justify-center gap-2">
               <LockKeyhole className="size-4 shrink-0" aria-hidden="true" />
-              <span>Enter a passcode to join</span>
+              <span>Enter a PIN to join</span>
             </p>
           </div>
         </section>

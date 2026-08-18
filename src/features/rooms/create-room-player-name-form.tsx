@@ -23,6 +23,13 @@ import {
   clearPendingCreateRoom,
   loadPendingCreateRoom,
 } from "@/features/rooms/services/pending-create-room";
+import { AvatarPicker } from "@/features/rooms/avatar-picker";
+import {
+  loadLastPlayerName,
+  loadLastPlayerPhoto,
+  saveLastPlayerName,
+  saveLastPlayerPhoto,
+} from "@/features/rooms/services/last-player-name";
 import type { CreateRoomFormValues } from "@/lib/validations/create-room";
 import {
   playerNameSchema,
@@ -44,6 +51,7 @@ export function CreateRoomPlayerNameForm() {
     resolver: zodResolver(playerNameSchema),
     defaultValues: {
       displayName: "",
+      photoUrl: "",
     },
   });
 
@@ -51,12 +59,21 @@ export function CreateRoomPlayerNameForm() {
     const timeoutId = window.setTimeout(() => {
       const draft = loadPendingCreateRoom();
       setSetupState(draft ? { status: "ready", draft } : { status: "missing" });
+
+      const lastSavedName = loadLastPlayerName();
+      const lastSavedPhoto = loadLastPlayerPhoto();
+      if (lastSavedName || lastSavedPhoto) {
+        form.reset({
+          displayName: lastSavedName,
+          photoUrl: lastSavedPhoto,
+        });
+      }
     }, 0);
 
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, []);
+  }, [form]);
 
   async function onSubmit(values: PlayerNameFormValues) {
     if (setupState.status !== "ready") {
@@ -65,9 +82,13 @@ export function CreateRoomPlayerNameForm() {
     }
 
     try {
+      saveLastPlayerName(values.displayName);
+      saveLastPlayerPhoto(values.photoUrl);
+
       const { roomId } = await createRoom({
         ...setupState.draft,
         hostDisplayName: values.displayName,
+        photoUrl: values.photoUrl,
       });
 
       clearPendingCreateRoom();
@@ -115,11 +136,30 @@ export function CreateRoomPlayerNameForm() {
             <h2 className="mt-1 text-2xl font-bold text-white">
               {setupState.draft.roomName}
             </h2>
-            <p className="mt-3 text-base text-white/65">Enter your name</p>
+            <p className="mt-3 text-base text-white/65">
+              Enter your name & profile
+            </p>
           </div>
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="photoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <AvatarPicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        name={form.watch("displayName")}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="displayName"
