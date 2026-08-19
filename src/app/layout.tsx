@@ -14,8 +14,9 @@ export const metadata: Metadata = {
   title: "Chipless",
   description: "Mobile-first poker session tracker setup.",
   icons: {
-    icon: "/images/logo/ChatGPT Image 27 ก.ค. 2569 18_26_31.png",
-    apple: "/images/logo/ChatGPT Image 27 ก.ค. 2569 18_26_31.png",
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
   },
 };
 

@@ -108,6 +108,7 @@ export function GameRoomView({
   const router = useRouter();
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isDeletingRoom, setIsDeletingRoom] = useState(false);
+  const [isDeleteRoomDialogOpen, setIsDeleteRoomDialogOpen] = useState(false);
   const [isLeavingRoom, setIsLeavingRoom] = useState(false);
   const [isLeaveRoomDialogOpen, setIsLeaveRoomDialogOpen] = useState(false);
   const [isScoreboardOpen, setIsScoreboardOpen] = useState(false);
@@ -360,19 +361,20 @@ export function GameRoomView({
     }
   }
 
+  function handleOpenDeleteRoomDialog() {
+    if (!isHost || isDeletingRoom) {
+      return;
+    }
+
+    setIsDeleteRoomDialogOpen(true);
+  }
+
   async function handleDeleteRoom() {
     if (!isHost || isDeletingRoom) {
       return;
     }
 
-    const confirmed = window.confirm(
-      `Delete room "${room.name}"?\n\nThis will remove the room and disconnect all players.`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
+    setIsDeleteRoomDialogOpen(false);
     setIsDeletingRoom(true);
 
     try {
@@ -437,7 +439,7 @@ export function GameRoomView({
       <GameHeader
         roomName={room.name}
         onCopyInviteLink={copyInviteLink}
-        onDeleteRoom={isHost ? handleDeleteRoom : undefined}
+        onDeleteRoom={isHost ? handleOpenDeleteRoomDialog : undefined}
         isDeletingRoom={isDeletingRoom}
         onLeaveRoom={() => setIsLeaveRoomDialogOpen(true)}
         isLeavingRoom={isLeavingRoom}
@@ -572,40 +574,76 @@ export function GameRoomView({
         />
       ) : null}
 
-        <Dialog
-          open={isLeaveRoomDialogOpen}
-          onOpenChange={setIsLeaveRoomDialogOpen}
-        >
-          <DialogContent className="border-white/30 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.12)] sm:max-w-sm">
-            <DialogHeader className="text-left">
-              <DialogTitle>Leave room?</DialogTitle>
-              <DialogDescription className="text-white/65">
-                You will be removed from this room immediately.
-              </DialogDescription>
-            </DialogHeader>
+      <Dialog
+        open={isDeleteRoomDialogOpen}
+        onOpenChange={setIsDeleteRoomDialogOpen}
+      >
+        <DialogContent className="border-rose-500/35 bg-black/95 text-white shadow-[0_0_32px_rgba(244,63,94,0.15)] sm:max-w-sm">
+          <DialogHeader className="text-left">
+            <DialogTitle>Delete room?</DialogTitle>
+            <DialogDescription className="text-white/65">
+              This will remove "{room.name}" and disconnect all players.
+            </DialogDescription>
+          </DialogHeader>
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsLeaveRoomDialogOpen(false)}
-                className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                onClick={() => {
-                  void handleLeaveRoom();
-                }}
-                disabled={isLeavingRoom}
-                className="bg-white text-black hover:bg-neutral-100"
-              >
-                {isLeavingRoom ? "Leaving..." : "Leave room"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDeleteRoomDialogOpen(false)}
+              disabled={isDeletingRoom}
+              className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                void handleDeleteRoom();
+              }}
+              disabled={isDeletingRoom}
+              className="bg-rose-500 text-white hover:bg-rose-400"
+            >
+              {isDeletingRoom ? "Deleting..." : "Delete room"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isLeaveRoomDialogOpen}
+        onOpenChange={setIsLeaveRoomDialogOpen}
+      >
+        <DialogContent className="border-white/30 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.12)] sm:max-w-sm">
+          <DialogHeader className="text-left">
+            <DialogTitle>Leave room?</DialogTitle>
+            <DialogDescription className="text-white/65">
+              You will be removed from this room immediately.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsLeaveRoomDialogOpen(false)}
+              className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                void handleLeaveRoom();
+              }}
+              disabled={isLeavingRoom}
+              className="bg-white text-black hover:bg-neutral-100"
+            >
+              {isLeavingRoom ? "Leaving..." : "Leave room"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
