@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronDown, ChevronUp, Crown, Trophy, UserPen } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { getActiveWinStreaks } from "@/features/game/logic/win-streaks";
-import type { HandSettlement } from "@/features/rooms/services/settle-hand";
+import { getRoomLeaderboard } from "@/features/game/logic/room-leaderboard";
+import {
+  correctHandWinner,
+  getSettlementWinnerUids,
+  SettleHandError,
+  type HandSettlement,
+} from "@/features/rooms/services/settle-hand";
 import type { RoomPlayerListItem } from "@/features/rooms/services/subscribe-room-players";
 
 function formatAmount(amount: number): string {
@@ -27,6 +34,27 @@ function formatAmount(amount: number): string {
   }
 
   return "0";
+}
+
+function splitAmount(amount: number, receiverUids: readonly string[]): number[] {
+  const baseShare = Math.floor(amount / receiverUids.length);
+  let remaining = amount - baseShare * receiverUids.length;
+
+  return receiverUids.map(() => {
+    const extra = remaining > 0 ? 1 : 0;
+    remaining -= extra;
+    return baseShare + extra;
+  });
+}
+
+function sameUidSet(
+  firstUids: readonly string[],
+  secondUids: readonly string[],
+): boolean {
+  return (
+    firstUids.length === secondUids.length &&
+    firstUids.every((uid) => secondUids.includes(uid))
+  );
 }
 
 type PersonalLedgerRow = {
@@ -44,80 +72,6 @@ type PersonalHandHistoryRow = {
   settlement: HandSettlement;
 };
 
-type RoomLeaderboardRow = {
-  rank: number;
-  uid: string;
-  displayName: string;
-  photoUrl?: string;
-  net: number;
-  handsPlayed: number;
-};
-
-function getRoomLeaderboard({
-  settlements,
-  players,
-}: {
-  settlements: Record<string, HandSettlement>;
-  players: RoomPlayerListItem[];
-}): RoomLeaderboardRow[] {
-  const playerNamesByUid = new Map(players.map((p) => [p.uid, p.displayName]));
-  const playerPhotosByUid = new Map(players.map((p) => [p.uid, p.photoUrl]));
-  const totalsByUid = new Map<
-    string,
-    {
-      net: number;
-      handsPlayed: number;
-      displayName: string;
-      photoUrl?: string;
-    }
-  >();
-
-  players.forEach((player) => {
-    totalsByUid.set(player.uid, {
-      net: 0,
-      handsPlayed: 0,
-      displayName: player.displayName ?? "Player",
-      photoUrl: player.photoUrl,
-    });
-  });
-
-  Object.values(settlements).forEach((settlement) => {
-    Object.values(settlement.playerResults).forEach((result) => {
-      const existing = totalsByUid.get(result.uid);
-      const displayName =
-        playerNamesByUid.get(result.uid) ??
-        existing?.displayName ??
-        result.displayName ??
-        "Player";
-      const photoUrl = playerPhotosByUid.get(result.uid) ?? existing?.photoUrl;
-
-      totalsByUid.set(result.uid, {
-        net: (existing?.net ?? 0) + result.net,
-        handsPlayed:
-          (existing?.handsPlayed ?? 0) +
-          (result.contribution > 0 || result.net !== 0 ? 1 : 0),
-        displayName,
-        photoUrl,
-      });
-    });
-  });
-
-  const sorted = Array.from(totalsByUid.entries())
-    .map(([uid, data]) => ({
-      uid,
-      displayName: data.displayName,
-      photoUrl: data.photoUrl,
-      net: data.net,
-      handsPlayed: data.handsPlayed,
-    }))
-    .sort((first, second) => second.net - first.net);
-
-  return sorted.map((row, index) => ({
-    ...row,
-    rank: index + 1,
-  }));
-}
-
 function getPersonalRowsForSettlement({
   settlement,
   currentUid,
@@ -131,27 +85,44 @@ function getPersonalRowsForSettlement({
     return [];
   }
 
-  if (settlement.winnerUid === currentUid) {
+  const winnerUids = getSettlementWinnerUids(settlement);
+  const isCurrentUserWinner = winnerUids.includes(currentUid);
+
+  if (isCurrentUserWinner) {
     return Object.values(settlement.playerResults)
-      .filter((result) => result.uid !== currentUid && result.contribution > 0)
-      .map((result) => ({
-        uid: result.uid,
-        displayName: result.displayName,
-        net: result.contribution,
-      }));
+      .filter(
+        (result) => !winnerUids.includes(result.uid) && result.contribution > 0,
+      )
+      .map((result) => {
+        const winnerShareIndex = winnerUids.indexOf(currentUid);
+        const shares = splitAmount(result.contribution, winnerUids);
+
+        return {
+          uid: result.uid,
+          displayName: result.displayName,
+          net: shares[winnerShareIndex] ?? 0,
+        };
+      })
+      .filter((row) => row.net !== 0);
   }
 
   if (currentResult.contribution <= 0) {
     return [];
   }
 
-  return [
-    {
-      uid: settlement.winnerUid,
-      displayName: settlement.winnerName,
-      net: -currentResult.contribution,
-    },
-  ];
+  const shares = splitAmount(currentResult.contribution, winnerUids);
+
+  return winnerUids
+    .map((winnerUid, index) => {
+      const winnerResult = settlement.playerResults[winnerUid];
+
+      return {
+        uid: winnerUid,
+        displayName: winnerResult?.displayName ?? "Winner",
+        net: -(shares[index] ?? 0),
+      };
+    })
+    .filter((row) => row.net !== 0);
 }
 
 function getScoreRows({
@@ -212,28 +183,40 @@ function getPersonalHistoryRows({
 export function RoomScoreboardDialog({
   open,
   onOpenChange,
+  roomId,
   players,
   settlements,
   currentUid,
+  canEditWinners = false,
   onChangeName,
   onSelectPlayer,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  roomId: string;
   players: RoomPlayerListItem[];
   settlements: Record<string, HandSettlement>;
   currentUid: string;
+  canEditWinners?: boolean;
   onChangeName?: () => void;
   onSelectPlayer?: (player: RoomPlayerListItem) => void;
 }) {
   const [expandedHands, setExpandedHands] = useState<Set<number>>(new Set());
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
+  const [editingWinnerHandNumber, setEditingWinnerHandNumber] = useState<
+    number | null
+  >(null);
+  const [editingWinnerUids, setEditingWinnerUids] = useState<Set<string>>(
+    new Set(),
+  );
+  const [updatingWinnerKey, setUpdatingWinnerKey] = useState<string | null>(
+    null,
+  );
 
   const settlementList = Object.values(settlements).sort(
     (first, second) => first.handNumber - second.handNumber,
   );
-  const currentPlayerName =
-    players.find((player) => player.uid === currentUid)?.displayName ?? "You";
+  const latestSettlementHandNumber = settlementList.at(-1)?.handNumber;
   const leaderboardRows = getRoomLeaderboard({ settlements, players });
   const activeWinStreaks = getActiveWinStreaks(settlements);
   const rows = getScoreRows({ settlements, players, currentUid });
@@ -242,12 +225,6 @@ export function RoomScoreboardDialog({
     currentUid,
   });
   const playerNamesByUid = new Map(players.map((p) => [p.uid, p.displayName]));
-
-  useEffect(() => {
-    if (open) {
-      setIsLeaderboardOpen(false);
-    }
-  }, [open]);
 
   function toggleExpandHand(handNumber: number) {
     setExpandedHands((prev) => {
@@ -259,6 +236,44 @@ export function RoomScoreboardDialog({
       }
       return next;
     });
+  }
+
+  async function handleCorrectWinner({
+    handNumber,
+    winnerUids,
+  }: {
+    handNumber: number;
+    winnerUids: string[];
+  }): Promise<void> {
+    const updateKey = `${handNumber}:${winnerUids.join("-")}`;
+
+    if (handNumber !== latestSettlementHandNumber) {
+      toast.error("Only the latest finished hand can be edited.");
+      setEditingWinnerHandNumber(null);
+      setEditingWinnerUids(new Set());
+      return;
+    }
+
+    if (updatingWinnerKey || winnerUids.length === 0) {
+      return;
+    }
+
+    setUpdatingWinnerKey(updateKey);
+
+    try {
+      await correctHandWinner({ roomId, handNumber, winnerUids });
+      toast.success(`Hand #${handNumber} winner updated.`);
+      setEditingWinnerHandNumber(null);
+      setEditingWinnerUids(new Set());
+    } catch (error) {
+      const message =
+        error instanceof SettleHandError || error instanceof Error
+          ? error.message
+          : "Unable to edit winner.";
+      toast.error(message);
+    } finally {
+      setUpdatingWinnerKey(null);
+    }
   }
 
   const grandTotal = rows.reduce((total, row) => total + row.net, 0);
@@ -466,9 +481,28 @@ export function RoomScoreboardDialog({
               .reverse()
               .map((historyRow) => {
                 const isExpanded = expandedHands.has(historyRow.handNumber);
+                const canEditThisWinner =
+                  canEditWinners &&
+                  historyRow.handNumber === latestSettlementHandNumber;
+                const winnerUids = getSettlementWinnerUids(
+                  historyRow.settlement,
+                );
+                const selectedEditWinnerUids = Array.from(editingWinnerUids);
+                const hasChangedEditedWinners = !sameUidSet(
+                  winnerUids,
+                  selectedEditWinnerUids,
+                );
                 const allPlayerResults = Object.values(
                   historyRow.settlement.playerResults,
                 ).sort((first, second) => second.net - first.net);
+                const foldedResultUids = new Set(
+                  allPlayerResults
+                    .filter((result) => result.hasFolded)
+                    .map((result) => result.uid),
+                );
+                const hasInvalidEditedWinners = selectedEditWinnerUids.some(
+                  (uid) => foldedResultUids.has(uid),
+                );
 
                 return (
                   <div
@@ -520,9 +554,120 @@ export function RoomScoreboardDialog({
 
                     {isExpanded ? (
                       <div className="mt-3 space-y-1.5 border-t border-white/10 pt-2.5">
-                        <p className="text-[11px] font-semibold tracking-wider text-white/45 uppercase">
-                          Hand Breakdown
-                        </p>
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[11px] font-semibold tracking-wider text-white/45 uppercase">
+                            Hand Breakdown
+                          </p>
+                          {canEditThisWinner ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditingWinnerHandNumber(
+                                  editingWinnerHandNumber ===
+                                    historyRow.handNumber
+                                    ? null
+                                    : historyRow.handNumber,
+                                );
+                                setEditingWinnerUids(
+                                  editingWinnerHandNumber ===
+                                    historyRow.handNumber
+                                    ? new Set()
+                                    : new Set(winnerUids),
+                                );
+                              }}
+                              className="h-7 border-white/25 bg-white/10 px-2 text-[11px] text-white hover:bg-white/20 hover:text-white"
+                            >
+                              Edit winner
+                            </Button>
+                          ) : null}
+                        </div>
+
+                        {canEditThisWinner &&
+                        editingWinnerHandNumber === historyRow.handNumber ? (
+                          <div className="mb-2 rounded-lg border border-white/15 bg-black/45 p-2">
+                            <p className="mb-2 text-[11px] font-semibold text-white/55">
+                              Select one or more actual winners
+                            </p>
+                            <div className="grid gap-1.5">
+                              {allPlayerResults.map((result) => {
+                                const latestName =
+                                  playerNamesByUid.get(result.uid) ??
+                                  result.displayName;
+                                const isSelectedWinner =
+                                  editingWinnerUids.has(result.uid);
+                                const isFolded = result.hasFolded === true;
+
+                                return (
+                                  <button
+                                    key={result.uid}
+                                    type="button"
+                                    onClick={() => {
+                                      if (isFolded) {
+                                        return;
+                                      }
+
+                                      setEditingWinnerUids((current) => {
+                                        const next = new Set(current);
+
+                                        if (next.has(result.uid)) {
+                                          next.delete(result.uid);
+                                        } else {
+                                          next.add(result.uid);
+                                        }
+
+                                        return next;
+                                      });
+                                    }}
+                                    disabled={
+                                      updatingWinnerKey !== null || isFolded
+                                    }
+                                    className={`flex h-9 items-center justify-between rounded-lg border px-2.5 text-left text-xs text-white transition-colors disabled:cursor-not-allowed disabled:opacity-55 ${
+                                      isFolded
+                                        ? "border-red-300/20 bg-red-950/20"
+                                        : isSelectedWinner
+                                        ? "border-emerald-300/60 bg-emerald-300/15"
+                                        : "border-white/15 bg-white/5 hover:border-white/35 hover:bg-white/10"
+                                    }`}
+                                  >
+                                    <span className="font-semibold">
+                                      {latestName}
+                                    </span>
+                                    <span className="text-white/55">
+                                      {isFolded
+                                        ? "Folded"
+                                        : isSelectedWinner
+                                          ? "Selected"
+                                          : "Tap to add"}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                void handleCorrectWinner({
+                                  handNumber: historyRow.handNumber,
+                                  winnerUids: selectedEditWinnerUids,
+                                });
+                              }}
+                              disabled={
+                                selectedEditWinnerUids.length === 0 ||
+                                hasInvalidEditedWinners ||
+                                !hasChangedEditedWinners ||
+                                updatingWinnerKey !== null
+                              }
+                              className="mt-2 h-9 w-full border-white bg-white text-xs font-bold text-black hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-55"
+                            >
+                              {updatingWinnerKey ? "Updating..." : "Save winners"}
+                            </Button>
+                          </div>
+                        ) : null}
+
                         {allPlayerResults.map((result) => {
                           const latestName =
                             playerNamesByUid.get(result.uid) ??
@@ -534,8 +679,7 @@ export function RoomScoreboardDialog({
                             >
                               <span className="text-white/80">
                                 {latestName}
-                                {result.uid ===
-                                historyRow.settlement.winnerUid ? (
+                                {winnerUids.includes(result.uid) ? (
                                   <span className="ml-1 text-[10px] font-semibold text-amber-300">
                                     (Winner)
                                   </span>

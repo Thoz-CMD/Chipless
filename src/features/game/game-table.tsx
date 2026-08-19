@@ -9,6 +9,7 @@ import type {
   BettingRound,
   HoldemActionLogEntry,
 } from "@/features/game/logic/texas-holdem";
+import type { ExtinguishedWinStreak } from "@/features/game/logic/win-streaks";
 import { PlayerSeat } from "@/features/game/player-seat";
 import type { RoomPlayerListItem } from "@/features/rooms/services/subscribe-room-players";
 import {
@@ -20,11 +21,19 @@ function joinedAtValue(player: RoomPlayerListItem): number {
   return player.joinedAt ?? 0;
 }
 
-function getSeatPosition(index: number, playerCount: number): CSSProperties {
+type SeatCoordinates = {
+  x: number;
+  y: number;
+};
+
+function getSeatCoordinates(
+  index: number,
+  playerCount: number,
+): SeatCoordinates {
   if (index === 0 || playerCount <= 1) {
     return {
-      left: "50%",
-      top: "82%",
+      x: 50,
+      y: 82,
     };
   }
 
@@ -40,8 +49,15 @@ function getSeatPosition(index: number, playerCount: number): CSSProperties {
   const centerY = 50;
 
   return {
-    left: `${centerX + radiusX * Math.cos(radians)}%`,
-    top: `${centerY + radiusY * Math.sin(radians)}%`,
+    x: centerX + radiusX * Math.cos(radians),
+    y: centerY + radiusY * Math.sin(radians),
+  };
+}
+
+function getSeatPosition(coordinates: SeatCoordinates): CSSProperties {
+  return {
+    left: `${coordinates.x}%`,
+    top: `${coordinates.y}%`,
   };
 }
 
@@ -120,13 +136,17 @@ export function GameTable({
   canArrangeSeats,
   potAmount,
   currentPlayerContribution,
+  currentSmallBlindUid,
   currentBigBlindUid,
   currentTurnUid,
+  activeHandPlayerUids,
   foldedUids,
   actionLog,
   bettingRound,
   latestWinnerName,
   winStreaksByUid,
+  extinguishAnimation,
+  winnerAmountsByUid,
   onSelectPlayer,
 }: {
   roomId: string;
@@ -136,18 +156,28 @@ export function GameTable({
   canArrangeSeats: boolean;
   potAmount: number;
   currentPlayerContribution?: number;
+  currentSmallBlindUid?: string;
   currentBigBlindUid?: string;
   currentTurnUid?: string;
+  activeHandPlayerUids?: ReadonlySet<string>;
   foldedUids?: Set<string>;
   actionLog?: HoldemActionLogEntry[];
   bettingRound?: BettingRound;
   latestWinnerName?: string;
   winStreaksByUid?: Record<string, number>;
+  extinguishAnimation?: ExtinguishedWinStreak | null;
+  winnerAmountsByUid?: Record<string, number>;
   onSelectPlayer?: (player: RoomPlayerListItem) => void;
 }) {
   const [draggingUid, setDraggingUid] = useState<string | null>(null);
   const [dragTargetUid, setDragTargetUid] = useState<string | null>(null);
   const seatedPlayers = orderPlayersForSeats(players, currentUid);
+  const seatCoordinatesByUid = new Map(
+    seatedPlayers.map((player, index) => [
+      player.uid,
+      getSeatCoordinates(index, seatedPlayers.length),
+    ]),
+  );
   const playerUids = new Set(players.map((player) => player.uid));
   const bigBlindUid =
     currentBigBlindUid && playerUids.has(currentBigBlindUid)
@@ -232,7 +262,7 @@ export function GameTable({
               </div>
             ) : null}
             {revealStatus ? (
-              <div className="mb-0.5 w-full rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-semibold text-white">
+              <div className="mb-0.5 w-full rounded-lg border border-amber-300/60 bg-amber-300/15 px-3 py-1.5 text-center text-sm font-bold text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.22)]">
                 {revealStatus}
               </div>
             ) : null}
@@ -288,11 +318,23 @@ export function GameTable({
           key={player.uid}
           player={player}
           isCurrentUser={player.uid === currentUid}
+          isSmallBlind={player.uid === currentSmallBlindUid}
           isBigBlind={player.uid === bigBlindUid}
           isCurrentTurn={player.uid === currentTurnUid}
           hasFolded={foldedUids?.has(player.uid)}
+          isWaitingForNextHand={
+            activeHandPlayerUids !== undefined &&
+            !activeHandPlayerUids.has(player.uid)
+          }
           winStreak={winStreaksByUid?.[player.uid]}
-          style={getSeatPosition(index, seatedPlayers.length)}
+          isExtinguishing={extinguishAnimation?.extinguishedUids.includes(
+            player.uid,
+          )}
+          winnerAmount={winnerAmountsByUid?.[player.uid]}
+          style={getSeatPosition(
+            seatCoordinatesByUid.get(player.uid) ??
+              getSeatCoordinates(index, seatedPlayers.length),
+          )}
           draggable={canArrangeSeats}
           isSelected={draggingUid === player.uid}
           isDragTarget={

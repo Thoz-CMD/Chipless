@@ -9,7 +9,6 @@ import {
 
 import { signInWithAnonymousAccount } from "@/features/auth/anonymous-auth";
 import { cleanupEmptyRoom } from "@/features/rooms/services/cleanup-empty-room";
-import { repairRoomAfterPlayerLeaves } from "@/features/rooms/services/repair-room-after-player-leaves";
 import { getFirebaseAuth, getRealtimeDatabase } from "@/lib/firebase/client";
 
 export class PlayerPresenceError extends Error {
@@ -39,7 +38,6 @@ async function removePlayerAndDeleteEmptyRoom(
 ): Promise<void> {
   const database = getRealtimeDatabase();
 
-  await repairRoomAfterPlayerLeaves({ roomId, leavingUid: uid });
   await remove(ref(database, `roomPlayers/${roomId}/${uid}`));
   await cleanupEmptyRoom(roomId);
 }
@@ -113,7 +111,11 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
       markOffline();
     };
     const handlePageHide = () => {
-      markOffline();
+      removePlayerWithKeepalive({
+        roomId,
+        uid,
+        idToken: cachedIdToken,
+      });
     };
     const refreshIdToken = () => {
       void getFirebaseAuth()
@@ -145,7 +147,11 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
       window.removeEventListener("focus", refreshIdToken);
       window.removeEventListener("pagehide", handlePageHide);
       void disconnectOperation.cancel();
-      markOffline();
+      removePlayerWithKeepalive({
+        roomId,
+        uid,
+        idToken: cachedIdToken,
+      });
     };
   } catch (error) {
     if (error instanceof FirebaseError) {

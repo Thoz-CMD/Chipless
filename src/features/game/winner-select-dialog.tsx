@@ -27,20 +27,44 @@ export function WinnerSelectDialog({
   hand: HoldemGameState;
   open: boolean;
 }) {
-  const [selectedWinnerUid, setSelectedWinnerUid] = useState<string>("");
+  const [selectedWinnerUids, setSelectedWinnerUids] = useState<Set<string>>(
+    new Set(),
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  async function handleSettleHand(winnerUid: string): Promise<void> {
-    if (!winnerUid || isSubmitting) {
+  function toggleWinner(uid: string): void {
+    const targetPlayer = hand.players.find((player) => player.uid === uid);
+
+    if (targetPlayer?.hasFolded) {
       return;
     }
 
-    setSelectedWinnerUid(winnerUid);
+    setSelectedWinnerUids((current) => {
+      const next = new Set(current);
+
+      if (next.has(uid)) {
+        next.delete(uid);
+      } else {
+        next.add(uid);
+      }
+
+      return next;
+    });
+  }
+
+  async function handleSettleHand(): Promise<void> {
+    const winnerUids = Array.from(selectedWinnerUids);
+
+    if (winnerUids.length === 0 || isSubmitting) {
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      await settleHand({ roomId, winnerUid });
+      await settleHand({ roomId, winnerUids });
       toast.success("Hand settled.");
+      setSelectedWinnerUids(new Set());
     } catch (error) {
       const message =
         error instanceof SettleHandError || error instanceof Error
@@ -58,31 +82,61 @@ export function WinnerSelectDialog({
         <DialogHeader>
           <DialogTitle>Choose Winner</DialogTitle>
           <DialogDescription className="text-white/60">
-            Hand #{handNumber}. Select the player who wins this pot.
+            Hand #{handNumber}. Select one or more players who win this pot.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2">
-          {hand.players.map((player) => (
-            <button
-              key={player.uid}
-              type="button"
-              onClick={() => {
-                void handleSettleHand(player.uid);
-              }}
-              disabled={isSubmitting}
-              className="flex h-12 w-full items-center justify-between rounded-xl border border-white/20 bg-white/5 px-3 text-left text-white transition-colors hover:border-white/40 hover:bg-white/10 active:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <span className="font-semibold text-white">
-                {player.displayName}
-              </span>
-              <span className="text-sm text-white/65">
-                {isSubmitting && selectedWinnerUid === player.uid
-                  ? "Saving..."
-                  : `Bet ${player.totalContribution.toLocaleString("en-US")} THB`}
-              </span>
-            </button>
-          ))}
+          {hand.players.map((player) => {
+            const isSelected = selectedWinnerUids.has(player.uid);
+            const isFolded = player.hasFolded;
+
+            return (
+              <button
+                key={player.uid}
+                type="button"
+                onClick={() => toggleWinner(player.uid)}
+                disabled={isSubmitting || isFolded}
+                className={`flex h-12 w-full items-center justify-between rounded-xl border px-3 text-left text-white transition-colors active:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60 ${
+                  isFolded
+                    ? "border-red-300/20 bg-red-950/20"
+                    : isSelected
+                    ? "border-emerald-300/70 bg-emerald-300/15"
+                    : "border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/10"
+                }`}
+              >
+                <span className="font-semibold text-white">
+                  {player.displayName}
+                </span>
+                <span className="text-sm text-white/65">
+                  {isFolded
+                    ? "Folded"
+                    : isSelected
+                      ? "Selected"
+                      : `Bet ${player.totalContribution.toLocaleString("en-US")} THB`}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div>
+          <button
+            type="button"
+            onClick={() => {
+              void handleSettleHand();
+            }}
+            disabled={selectedWinnerUids.size === 0 || isSubmitting}
+            className="h-12 w-full rounded-xl border border-white bg-white text-sm font-bold text-black transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-55"
+          >
+            {isSubmitting
+              ? "Saving..."
+              : selectedWinnerUids.size > 1
+                ? `Settle split pot (${selectedWinnerUids.size})`
+                : selectedWinnerUids.size === 1
+                  ? "Settle hand"
+                  : "Select winner to continue"}
+          </button>
         </div>
       </DialogContent>
     </Dialog>

@@ -11,6 +11,7 @@ import {
   playCheckSound,
   playChipSound,
   playFoldSound,
+  primeGameSounds,
   playTurnAlertSound,
   playWinnerSound,
 } from "@/features/game/sound-effects";
@@ -149,6 +150,28 @@ export function useGameSoundEffects({
   const previousSettlementHandNumber = useRef<number | null>(
     getLatestSettlementHandNumber(settlements),
   );
+
+  useEffect(() => {
+    primeGameSounds();
+
+    const handleUserGesture = () => {
+      primeGameSounds();
+    };
+
+    window.addEventListener("pointerdown", handleUserGesture, {
+      once: true,
+    });
+    window.addEventListener("touchstart", handleUserGesture, {
+      once: true,
+    });
+    window.addEventListener("keydown", handleUserGesture, { once: true });
+
+    return () => {
+      window.removeEventListener("pointerdown", handleUserGesture);
+      window.removeEventListener("touchstart", handleUserGesture);
+      window.removeEventListener("keydown", handleUserGesture);
+    };
+  }, []);
 
   useEffect(() => {
     const latestActionKey = getLatestActionKey({

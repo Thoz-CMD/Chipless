@@ -1,5 +1,3 @@
-import { Crown } from "lucide-react";
-
 const avatarTones = [
   "from-neutral-200 to-neutral-700",
   "from-zinc-100 to-zinc-800",
@@ -21,6 +19,7 @@ export function PlayerAvatar({
   photoUrl,
   winStreak = 0,
   isCurrentUser,
+  isSmallBlind,
   isBigBlind,
   isCurrentTurn,
   hasFolded,
@@ -30,6 +29,7 @@ export function PlayerAvatar({
   photoUrl?: string;
   winStreak?: number;
   isCurrentUser: boolean;
+  isSmallBlind: boolean;
   isBigBlind: boolean;
   isCurrentTurn: boolean;
   hasFolded?: boolean;
@@ -37,7 +37,6 @@ export function PlayerAvatar({
   const tone = avatarTones[getAvatarIndex(uid) % avatarTones.length];
   const initial = name.trim().charAt(0).toUpperCase() || "?";
   const isOnFire = winStreak >= 2 && !hasFolded;
-  const isSingleWin = winStreak === 1 && !hasFolded;
 
   return (
     <div className="relative flex size-14 items-center justify-center">
@@ -52,9 +51,7 @@ export function PlayerAvatar({
                 : "animate-fire-glow border-orange-400 ring-2 ring-orange-400/90"
               : isCurrentTurn
                 ? "border-yellow-300 shadow-[0_0_26px_rgba(253,224,71,0.8)] ring-4 ring-yellow-300/70"
-                : isSingleWin
-                  ? "border-amber-400/80 shadow-[0_0_16px_rgba(251,191,36,0.35)] ring-1 ring-amber-400/60"
-                  : isCurrentUser
+                : isCurrentUser
                     ? "border-white shadow-[0_0_18px_rgba(255,255,255,0.18)] ring-2 ring-white/70"
                     : "border-white/45 shadow-[0_0_18px_rgba(255,255,255,0.18)]"
         }`}
@@ -81,19 +78,31 @@ export function PlayerAvatar({
         ) : null}
       </div>
 
-      {/* Big Blind Crown */}
-      {isBigBlind ? (
-        <div className="pointer-events-none absolute -top-6 left-1/2 z-20 -translate-x-1/2 text-yellow-300 drop-shadow-[0_0_8px_rgba(253,224,71,0.75)]">
-          <Crown className="size-7 fill-yellow-300" aria-label="Big blind" />
+      {/* Blind chip marker */}
+      {isSmallBlind || isBigBlind ? (
+        <div
+          className={`pointer-events-none absolute -top-3 -right-2 z-20 flex size-8 items-center justify-center rounded-full border-2 text-[10px] font-black shadow-[0_0_10px_rgba(255,255,255,0.25)] ring-1 ring-black ${
+            isBigBlind
+              ? "border-white/80 bg-white text-black"
+              : "border-white bg-black text-white"
+          }`}
+          aria-label={isBigBlind ? "Big blind" : "Small blind"}
+        >
+          <span
+            className={`absolute inset-1 rounded-full border ${
+              isBigBlind ? "border-black/25" : "border-white/35"
+            }`}
+          />
+          <span className="relative leading-none tracking-normal">
+            {isBigBlind ? "BB" : "SB"}
+          </span>
         </div>
       ) : null}
 
       {/* Win Streak "On Fire" Badge */}
       {isOnFire ? (
         <div
-          className={`animate-flame-pulse pointer-events-none absolute left-1/2 z-30 flex items-center gap-1 rounded-full border border-amber-300/90 bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 px-2 py-0.5 text-[10px] font-black tracking-tight text-white shadow-[0_0_16px_rgba(249,115,22,1)] select-none ${
-            isBigBlind ? "-top-9" : "-top-2.5"
-          }`}
+          className="animate-flame-pulse pointer-events-none absolute -top-5 left-1/2 z-40 flex items-center gap-1 rounded-full border border-amber-300/90 bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 px-2 py-0.5 text-[10px] font-black tracking-tight text-white shadow-[0_0_16px_rgba(249,115,22,1)] select-none"
         >
           <span>🔥</span>
           <span className="font-extrabold tabular-nums drop-shadow">

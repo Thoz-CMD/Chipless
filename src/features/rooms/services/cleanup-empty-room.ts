@@ -1,4 +1,4 @@
-import { get, ref, update } from "firebase/database";
+import { get, ref, remove } from "firebase/database";
 
 import { getRealtimeDatabase } from "@/lib/firebase/client";
 
@@ -21,8 +21,6 @@ export async function cleanupEmptyRoom(roomId: string): Promise<void> {
     return;
   }
 
-  await update(ref(database), {
-    [`rooms/${roomId}`]: null,
-    [`roomSecrets/${roomId}`]: null,
-  });
+  await remove(ref(database, `roomSecrets/${roomId}`));
+  await remove(ref(database, `rooms/${roomId}`));
 }

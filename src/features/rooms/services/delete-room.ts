@@ -56,18 +56,22 @@ export async function deleteRoom(roomId: string): Promise<void> {
     }
 
     const playerEntries = playersSnapshot.val() as Record<string, unknown> | null;
-    const updates: Record<string, null> = {
-      [`rooms/${roomId}`]: null,
-      [`roomSecrets/${roomId}`]: null,
-    };
 
-    if (playerEntries) {
+    // Remove player entries first so rules that depend on the room still existing pass.
+    if (playerEntries && Object.keys(playerEntries).length > 0) {
+      const playerUpdates: Record<string, null> = {};
       Object.keys(playerEntries).forEach((uid) => {
-        updates[`roomPlayers/${roomId}/${uid}`] = null;
+        playerUpdates[`roomPlayers/${roomId}/${uid}`] = null;
       });
+
+      await update(ref(database), playerUpdates);
     }
 
-    await update(ref(database), updates);
+    // Delete room secrets (rules allow this only when no players remain).
+    await update(ref(database), { [`roomSecrets/${roomId}`]: null });
+
+    // Finally delete the room itself.
+    await update(ref(database), { [`rooms/${roomId}`]: null });
   } catch (error) {
     if (error instanceof DeleteRoomError) {
       throw error;

@@ -1,32 +1,41 @@
-import { ArrowLeft, Circle, Copy, Menu, Trash2 } from "lucide-react";
-import NextLink from "next/link";
+import { ArrowLeft, Copy, Menu, Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
 
 export function GameHeader({
   roomName,
-  playerCount,
   onCopyInviteLink,
   onDeleteRoom,
   isDeletingRoom = false,
+  onLeaveRoom,
+  isLeavingRoom = false,
   onOpenMenu,
+  leaderboard,
 }: {
   roomName: string;
-  playerCount: number;
   onCopyInviteLink: () => void;
   onDeleteRoom?: () => void;
   isDeletingRoom?: boolean;
+  onLeaveRoom?: () => void;
+  isLeavingRoom?: boolean;
   onOpenMenu: () => void;
+  leaderboard?: ReactNode;
 }) {
   return (
-    <header className="space-y-4">
+    <header>
       <div className="flex items-center justify-between gap-2 sm:gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <NextLink
-            href="/"
-            className="grid size-10 shrink-0 place-items-center rounded-full border border-white/25 bg-black/45 text-white focus:ring-2 focus:ring-white/60 focus:outline-none"
-            aria-label="Back to home"
-          >
-            <ArrowLeft className="size-5" aria-hidden="true" />
-          </NextLink>
+          {onLeaveRoom ? (
+            <button
+              type="button"
+              onClick={onLeaveRoom}
+              disabled={isLeavingRoom}
+              className="grid size-10 shrink-0 place-items-center rounded-full border border-white/25 bg-black/45 text-white focus:ring-2 focus:ring-white/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              aria-label={isLeavingRoom ? "Leaving room" : "Leave room"}
+              title={isLeavingRoom ? "Leaving room" : "Leave room"}
+            >
+              <ArrowLeft className="size-5" aria-hidden="true" />
+            </button>
+          ) : null}
           <p className="text-base font-bold tracking-normal whitespace-nowrap text-white sm:text-xl">
             Room: {roomName}
           </p>
@@ -56,19 +65,12 @@ export function GameHeader({
         </div>
       </div>
 
-      <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center">
-        <div aria-hidden="true" />
-        <div className="mx-auto flex items-center gap-3 rounded-lg border border-white/20 bg-black/45 px-4 py-2 text-sm text-white/80">
-          <span className="flex items-center gap-1.5">
-            <Circle className="size-3 fill-white" aria-hidden="true" />
-            Live
-          </span>
-          <span>{playerCount} Players</span>
-        </div>
+      <div className="mt-3 flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">{leaderboard}</div>
         <button
           type="button"
           onClick={onOpenMenu}
-          className="grid size-10 shrink-0 place-items-center rounded-full border border-white/25 bg-black/45 text-white focus:ring-2 focus:ring-white/60 focus:outline-none"
+          className="grid size-10 shrink-0 place-items-center rounded-lg border border-white/25 bg-black/45 text-white focus:ring-2 focus:ring-white/60 focus:outline-none"
           aria-label="Open room menu"
         >
           <Menu className="size-5" aria-hidden="true" />

@@ -2,18 +2,24 @@
 
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 
 import { ActionPanel } from "@/features/game/action-panel";
 import { ChangeNameDialog } from "@/features/game/change-name-dialog";
 import { GameHeader } from "@/features/game/game-header";
 import { GameTable } from "@/features/game/game-table";
 import { PlayerSummaryDialog } from "@/features/game/player-summary-dialog";
+import { RoomLeaderboardPanel } from "@/features/game/room-leaderboard-panel";
 import { RoomScoreboardDialog } from "@/features/game/room-scoreboard-dialog";
 import type { HoldemGameState } from "@/features/game/logic/texas-holdem";
 import { useGameSoundEffects } from "@/features/game/use-game-sound-effects";
 import { WinnerSelectDialog } from "@/features/game/winner-select-dialog";
-import { getActiveWinStreaks } from "@/features/game/logic/win-streaks";
+import {
+  getActiveWinStreaks,
+  getLatestExtinguishedWinStreak,
+  type ExtinguishedWinStreak,
+} from "@/features/game/logic/win-streaks";
 import {
   startGame,
   StartGameError,
@@ -26,8 +32,53 @@ import {
   kickPlayer,
   KickPlayerError,
 } from "@/features/rooms/services/kick-player";
-import type { HandSettlement } from "@/features/rooms/services/settle-hand";
+import { removeStaleRoomPlayer } from "@/features/rooms/services/remove-stale-room-player";
+import {
+  transferRoomHost,
+  TransferRoomHostError,
+} from "@/features/rooms/services/transfer-room-host";
+import {
+  getSettlementWinnerUids,
+  type HandSettlement,
+} from "@/features/rooms/services/settle-hand";
 import type { RoomPlayerListItem } from "@/features/rooms/services/subscribe-room-players";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
+const emptySettlements: Record<string, HandSettlement> = {};
+const fireEmberStyles: Array<CSSProperties & { id: number }> = Array.from(
+  { length: 22 },
+  (_, index) => ({
+    id: index,
+    left: `${(index * 41) % 100}%`,
+    width: `${0.24 + ((index * 5) % 10) * 0.03}rem`,
+    height: `${0.24 + ((index * 7) % 12) * 0.03}rem`,
+    animationDuration: `${1.35 + ((index * 11) % 24) * 0.045}s`,
+    animationDelay: `${((index * 13) % 18) * 0.06}s`,
+  }),
+);
+const rainDropStyles: Array<CSSProperties & { id: number }> = Array.from(
+  { length: 28 },
+  (_, index) => ({
+    id: index,
+    left: `${(index * 37) % 100}%`,
+    height: `${4.25 + ((index * 11) % 32) * 0.08}rem`,
+    animationDuration: `${0.82 + ((index * 13) % 28) * 0.015}s`,
+    animationDelay: `${((index * 7) % 18) * 0.045}s`,
+  }),
+);
+
+type WinnerAmountAnimation = {
+  handNumber: number;
+  amountsByUid: Record<string, number>;
+};
 
 export type GameRoomData = {
   id: string;
@@ -57,16 +108,28 @@ export function GameRoomView({
   const router = useRouter();
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isDeletingRoom, setIsDeletingRoom] = useState(false);
+  const [isLeavingRoom, setIsLeavingRoom] = useState(false);
+  const [isLeaveRoomDialogOpen, setIsLeaveRoomDialogOpen] = useState(false);
   const [isScoreboardOpen, setIsScoreboardOpen] = useState(false);
   const [isChangeNameOpen, setIsChangeNameOpen] = useState(false);
   const [isKicking, setIsKicking] = useState(false);
+  const [isTransferringHost, setIsTransferringHost] = useState(false);
+  const [isLeaderboardVisible, setIsLeaderboardVisible] = useState(false);
   const [selectedPlayerForSummary, setSelectedPlayerForSummary] =
     useState<RoomPlayerListItem | null>(null);
+  const [onFireAnimationHandNumber, setOnFireAnimationHandNumber] = useState<
+    number | null
+  >(null);
+  const [winnerAmountAnimation, setWinnerAmountAnimation] =
+    useState<WinnerAmountAnimation | null>(null);
+  const [extinguishAnimation, setExtinguishAnimation] =
+    useState<ExtinguishedWinStreak | null>(null);
+  const observedLatestSettlementHandRef = useRef<number | null>(null);
   const isHost = room.hostUid === currentUid;
   const isGameStarted = room.status === "playing";
   const holdemGameState = room.gameState?.hand ?? null;
   const handNumber = room.gameState?.handNumber ?? 1;
-  const settlements = room.gameState?.settlements ?? {};
+  const settlements = room.gameState?.settlements ?? emptySettlements;
   const currentPlayerData = players.find((player) => player.uid === currentUid);
   const currentDisplayName = currentPlayerData?.displayName ?? "";
   const currentPhotoUrl = currentPlayerData?.photoUrl;
@@ -82,12 +145,23 @@ export function GameRoomView({
     isHost && holdemGameState?.bettingRound === "showdown";
 
   const winStreaksByUid = getActiveWinStreaks(settlements);
+  const latestExtinguishedWinStreak = useMemo(
+    () => getLatestExtinguishedWinStreak(settlements),
+    [settlements],
+  );
+  const currentWinStreak = winStreaksByUid[currentUid] ?? 0;
+  const shouldShowExtinguishRain =
+    extinguishAnimation?.extinguishedUids.includes(currentUid) ?? false;
+  const shouldShowOnFireOverlay = onFireAnimationHandNumber !== null;
 
   const foldedUids = new Set(
     holdemGameState?.players
       ?.filter((player) => player.hasFolded)
       .map((player) => player.uid) ?? [],
   );
+  const activeHandPlayerUids = holdemGameState
+    ? new Set(holdemGameState.players.map((player) => player.uid))
+    : undefined;
 
   useGameSoundEffects({
     roomId: room.id,
@@ -96,6 +170,111 @@ export function GameRoomView({
     settlements,
     currentUid,
   });
+
+  useEffect(() => {
+    const latestSettlementHandNumber = latestSettlement?.handNumber ?? null;
+
+    if (observedLatestSettlementHandRef.current === null) {
+      observedLatestSettlementHandRef.current = latestSettlementHandNumber;
+      return;
+    }
+
+    if (latestSettlementHandNumber === observedLatestSettlementHandRef.current) {
+      return;
+    }
+
+    observedLatestSettlementHandRef.current = latestSettlementHandNumber;
+    const latestWinnerUids = latestSettlement
+      ? getSettlementWinnerUids(latestSettlement)
+      : [];
+    const winnerAmountsByUid =
+      latestSettlement === undefined
+        ? {}
+        : latestWinnerUids.reduce<Record<string, number>>((amounts, uid) => {
+            const net = latestSettlement.playerResults[uid]?.net ?? 0;
+
+            if (net > 0) {
+              amounts[uid] = net;
+            }
+
+            return amounts;
+          }, {});
+    const timeoutIds: number[] = [];
+
+    if (
+      latestSettlementHandNumber !== null &&
+      Object.keys(winnerAmountsByUid).length > 0
+    ) {
+      timeoutIds.push(
+        window.setTimeout(() => {
+          setWinnerAmountAnimation({
+            handNumber: latestSettlementHandNumber,
+            amountsByUid: winnerAmountsByUid,
+          });
+        }, 0),
+      );
+      timeoutIds.push(
+        window.setTimeout(() => {
+          setWinnerAmountAnimation((current) =>
+            current?.handNumber === latestSettlementHandNumber ? null : current,
+          );
+        }, 1800),
+      );
+    }
+
+    if (
+      latestSettlementHandNumber !== null &&
+      latestWinnerUids.includes(currentUid) &&
+      currentWinStreak >= 2
+    ) {
+      timeoutIds.push(
+        window.setTimeout(() => {
+          setOnFireAnimationHandNumber(latestSettlementHandNumber);
+        }, 0),
+      );
+      timeoutIds.push(
+        window.setTimeout(() => {
+          setOnFireAnimationHandNumber((current) =>
+            current === latestSettlementHandNumber ? null : current,
+          );
+        }, 2400),
+      );
+    }
+
+    if (
+      !latestExtinguishedWinStreak ||
+      latestExtinguishedWinStreak.handNumber !== latestSettlementHandNumber
+    ) {
+      return () => {
+        timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+      };
+    }
+
+    timeoutIds.push(
+      window.setTimeout(() => {
+        setExtinguishAnimation(latestExtinguishedWinStreak);
+      }, 0),
+    );
+    timeoutIds.push(
+      window.setTimeout(() => {
+        setExtinguishAnimation((current) =>
+          current?.handNumber === latestExtinguishedWinStreak.handNumber
+            ? null
+            : current,
+        );
+      }, 2400),
+    );
+
+    return () => {
+      timeoutIds.forEach((timeoutId) => window.clearTimeout(timeoutId));
+    };
+  }, [
+    currentUid,
+    currentWinStreak,
+    latestExtinguishedWinStreak,
+    latestSettlement,
+    latestSettlement?.handNumber,
+  ]);
 
   async function copyInviteLink() {
     const inviteLink = `${window.location.origin}/join-room?roomId=${encodeURIComponent(room.id)}`;
@@ -155,6 +334,32 @@ export function GameRoomView({
     }
   }
 
+  async function handleTransferHost() {
+    if (!selectedPlayerForSummary || isTransferringHost) {
+      return;
+    }
+
+    setIsTransferringHost(true);
+    const targetDisplayName = selectedPlayerForSummary.displayName ?? "Player";
+
+    try {
+      await transferRoomHost({
+        roomId: room.id,
+        targetUid: selectedPlayerForSummary.uid,
+      });
+      toast.success(`${targetDisplayName} is now the host.`);
+      setSelectedPlayerForSummary(null);
+    } catch (error) {
+      const message =
+        error instanceof TransferRoomHostError || error instanceof Error
+          ? error.message
+          : "Unable to change host.";
+      toast.error(message);
+    } finally {
+      setIsTransferringHost(false);
+    }
+  }
+
   async function handleDeleteRoom() {
     if (!isHost || isDeletingRoom) {
       return;
@@ -184,43 +389,107 @@ export function GameRoomView({
     }
   }
 
+  async function handleLeaveRoom() {
+    if (isLeavingRoom) {
+      return;
+    }
+
+    setIsLeavingRoom(true);
+    setIsLeaveRoomDialogOpen(false);
+
+    try {
+      await removeStaleRoomPlayer({ roomId: room.id, uid: currentUid });
+      toast.success("Left the room.");
+      router.replace("/");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to leave room.";
+      toast.error(message);
+    } finally {
+      setIsLeavingRoom(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
+      {shouldShowOnFireOverlay ? (
+        <div
+          className="chipless-on-fire-screen pointer-events-none fixed inset-0 z-40 overflow-hidden"
+          aria-hidden="true"
+        >
+          {fireEmberStyles.map((style) => (
+            <span key={style.id} style={style} />
+          ))}
+        </div>
+      ) : null}
+
+      {shouldShowExtinguishRain ? (
+        <div
+          className="chipless-extinguish-rain pointer-events-none fixed inset-0 z-50 overflow-hidden"
+          aria-hidden="true"
+        >
+          {rainDropStyles.map((style) => (
+            <span key={style.id} style={style} />
+          ))}
+        </div>
+      ) : null}
+
       <GameHeader
         roomName={room.name}
-        playerCount={players.length}
         onCopyInviteLink={copyInviteLink}
         onDeleteRoom={isHost ? handleDeleteRoom : undefined}
         isDeletingRoom={isDeletingRoom}
+        onLeaveRoom={() => setIsLeaveRoomDialogOpen(true)}
+        isLeavingRoom={isLeavingRoom}
         onOpenMenu={() => setIsScoreboardOpen(true)}
+        leaderboard={
+          <RoomLeaderboardPanel
+            players={players}
+            settlements={settlements}
+            currentUid={currentUid}
+            isVisible={isLeaderboardVisible}
+            onToggleVisible={() =>
+              setIsLeaderboardVisible((isVisible) => !isVisible)
+            }
+            onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
+          />
+        }
       />
 
-      <GameTable
-        roomId={room.id}
-        players={players}
-        currentUid={currentUid}
-        hostUid={room.hostUid}
-        canArrangeSeats={isHost}
-        potAmount={holdemGameState?.pot ?? room.settings.bigBlind}
-        currentPlayerContribution={
-          holdemGameState?.players.find((player) => player.uid === currentUid)
-            ?.totalContribution
-        }
-        currentBigBlindUid={room.gameState?.currentBigBlindUid}
-        currentTurnUid={
-          holdemGameState?.currentTurn === undefined
-            ? undefined
-            : holdemGameState.players[holdemGameState.currentTurn]?.uid
-        }
-        foldedUids={foldedUids}
-        actionLog={
-          isGameStarted ? (holdemGameState?.actionLog ?? []) : undefined
-        }
-        bettingRound={holdemGameState?.bettingRound}
-        latestWinnerName={recentlySettledWinnerName}
-        winStreaksByUid={winStreaksByUid}
-        onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
-      />
+      <div className="relative">
+        <GameTable
+          roomId={room.id}
+          players={players}
+          currentUid={currentUid}
+          hostUid={room.hostUid}
+          canArrangeSeats={isHost}
+          potAmount={holdemGameState?.pot ?? room.settings.bigBlind}
+          currentPlayerContribution={
+            holdemGameState?.players.find((player) => player.uid === currentUid)
+              ?.totalContribution
+          }
+          currentSmallBlindUid={
+            holdemGameState?.players[holdemGameState.smallBlindPosition]?.uid
+          }
+          currentBigBlindUid={room.gameState?.currentBigBlindUid}
+          currentTurnUid={
+            holdemGameState?.currentTurn === undefined
+              ? undefined
+              : holdemGameState.players[holdemGameState.currentTurn]?.uid
+          }
+          activeHandPlayerUids={activeHandPlayerUids}
+          foldedUids={foldedUids}
+          actionLog={
+            isGameStarted ? (holdemGameState?.actionLog ?? []) : undefined
+          }
+          bettingRound={holdemGameState?.bettingRound}
+          latestWinnerName={recentlySettledWinnerName}
+          winStreaksByUid={winStreaksByUid}
+          extinguishAnimation={extinguishAnimation}
+          winnerAmountsByUid={winnerAmountAnimation?.amountsByUid}
+          onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
+        />
+      </div>
 
       {isGameStarted ? (
         holdemGameState ? (
@@ -257,9 +526,11 @@ export function GameRoomView({
       <RoomScoreboardDialog
         open={isScoreboardOpen}
         onOpenChange={setIsScoreboardOpen}
+        roomId={room.id}
         players={players}
         settlements={settlements}
         currentUid={currentUid}
+        canEditWinners={isHost}
         onChangeName={() => setIsChangeNameOpen(true)}
         onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
       />
@@ -280,6 +551,8 @@ export function GameRoomView({
         onEditProfile={() => setIsChangeNameOpen(true)}
         onKick={handleKickPlayer}
         isKicking={isKicking}
+        onTransferHost={isHost ? handleTransferHost : undefined}
+        isTransferringHost={isTransferringHost}
       />
 
       <ChangeNameDialog
@@ -298,6 +571,41 @@ export function GameRoomView({
           open={shouldShowWinnerDialog}
         />
       ) : null}
+
+        <Dialog
+          open={isLeaveRoomDialogOpen}
+          onOpenChange={setIsLeaveRoomDialogOpen}
+        >
+          <DialogContent className="border-white/30 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.12)] sm:max-w-sm">
+            <DialogHeader className="text-left">
+              <DialogTitle>Leave room?</DialogTitle>
+              <DialogDescription className="text-white/65">
+                You will be removed from this room immediately.
+              </DialogDescription>
+            </DialogHeader>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsLeaveRoomDialogOpen(false)}
+                className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => {
+                  void handleLeaveRoom();
+                }}
+                disabled={isLeavingRoom}
+                className="bg-white text-black hover:bg-neutral-100"
+              >
+                {isLeavingRoom ? "Leaving..." : "Leave room"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
     </div>
   );
 }

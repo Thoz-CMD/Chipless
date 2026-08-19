@@ -21,35 +21,102 @@ const soundVolumes = {
 type SoundName = keyof typeof soundSources;
 
 const soundCooldownMs = 250;
-const audioCache = new Map<SoundName, HTMLAudioElement>();
+const soundBufferCache = new Map<SoundName, AudioBuffer>();
+const loadingBufferCache = new Map<SoundName, Promise<AudioBuffer | null>>();
+const activeSources = new Set<AudioBufferSourceNode>();
 let lastSoundStartedAt = 0;
+let audioContext: AudioContext | null = null;
 
-function getAudio(soundName: SoundName): HTMLAudioElement | null {
+function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") {
     return null;
   }
 
-  const cachedAudio = audioCache.get(soundName);
-
-  if (cachedAudio) {
-    return cachedAudio;
+  if (audioContext) {
+    return audioContext;
   }
 
-  const audio = new Audio(soundSources[soundName]);
-  audio.preload = "auto";
-  audio.volume = soundVolumes[soundName];
-  audioCache.set(soundName, audio);
+  const AudioContextConstructor =
+    window.AudioContext ??
+    (window as Window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
 
-  return audio;
+  if (!AudioContextConstructor) {
+    return null;
+  }
+
+  audioContext = new AudioContextConstructor();
+  return audioContext;
 }
 
-function playSound(
+function stopActiveSources() {
+  for (const source of activeSources) {
+    try {
+      source.stop();
+    } catch {
+      // Ignore already-stopped sources.
+    }
+  }
+
+  activeSources.clear();
+}
+
+async function loadSoundBuffer(soundName: SoundName): Promise<AudioBuffer | null> {
+  const cachedBuffer = soundBufferCache.get(soundName);
+
+  if (cachedBuffer) {
+    return cachedBuffer;
+  }
+
+  const cachedLoadingPromise = loadingBufferCache.get(soundName);
+
+  if (cachedLoadingPromise) {
+    return cachedLoadingPromise;
+  }
+
+  const loadingPromise = (async () => {
+    const context = getAudioContext();
+
+    if (!context) {
+      return null;
+    }
+
+    const response = await fetch(soundSources[soundName]);
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = await context.decodeAudioData(arrayBuffer);
+
+    soundBufferCache.set(soundName, buffer);
+    return buffer;
+  })();
+
+  loadingBufferCache.set(soundName, loadingPromise);
+
+  try {
+    return await loadingPromise;
+  } finally {
+    loadingBufferCache.delete(soundName);
+  }
+}
+
+export function primeGameSounds() {
+  const context = getAudioContext();
+
+  if (!context) {
+    return;
+  }
+
+  void context.resume().catch(() => {
+    // Browsers can require a user gesture before audio starts.
+  });
+}
+
+async function playSound(
   soundName: SoundName,
   { ignoreCooldown = false }: { ignoreCooldown?: boolean } = {},
 ) {
-  const audio = getAudio(soundName);
+  const context = getAudioContext();
 
-  if (!audio) {
+  if (!context) {
     return;
   }
 
@@ -59,40 +126,60 @@ function playSound(
     return;
   }
 
-  for (const cachedAudio of audioCache.values()) {
-    cachedAudio.pause();
-    cachedAudio.currentTime = 0;
+  const buffer = await loadSoundBuffer(soundName);
+
+  if (!buffer) {
+    return;
   }
 
+  if (context.state === "suspended") {
+    try {
+      await context.resume();
+    } catch {
+      return;
+    }
+  }
+
+  stopActiveSources();
+
+  const source = context.createBufferSource();
+  const gain = context.createGain();
+
+  gain.gain.value = soundVolumes[soundName];
+  source.buffer = buffer;
+  source.connect(gain);
+  gain.connect(context.destination);
+
+  activeSources.add(source);
   lastSoundStartedAt = now;
-  audio.pause();
-  audio.currentTime = 0;
-  audio.volume = soundVolumes[soundName];
-  void audio.play().catch(() => {
-    // Browsers can block audio until the user interacts with the page.
-  });
+
+  source.onended = () => {
+    activeSources.delete(source);
+  };
+
+  source.start(0);
 }
 
 export function playChipSound() {
-  playSound("chip");
+  void playSound("chip");
 }
 
 export function playCardSound() {
-  playSound("card");
+  void playSound("card");
 }
 
 export function playTurnAlertSound() {
-  playSound("turn");
+  void playSound("turn");
 }
 
 export function playWinnerSound() {
-  playSound("winner", { ignoreCooldown: true });
+  void playSound("winner", { ignoreCooldown: true });
 }
 
 export function playCheckSound() {
-  playSound("check");
+  void playSound("check");
 }
 
 export function playFoldSound() {
-  playSound("fold");
+  void playSound("fold");
 }

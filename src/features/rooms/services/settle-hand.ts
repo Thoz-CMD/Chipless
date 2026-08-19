@@ -17,15 +17,22 @@ export type HandSettlementPlayerResult = {
   displayName: string;
   contribution: number;
   net: number;
+  hasFolded?: boolean;
 };
 
 export type HandSettlement = {
   handNumber: number;
   winnerUid: string;
+  winnerUids?: string[];
   winnerName: string;
   pot: number;
   playerResults: Record<string, HandSettlementPlayerResult>;
   createdAt?: number;
+  correctedAt?: number;
+  correctedBy?: string;
+  previousWinnerUid?: string;
+  previousWinnerUids?: string[];
+  previousWinnerName?: string;
 };
 
 type RoomGameState = {
@@ -105,39 +112,186 @@ function isRoomStateRecord(value: unknown): value is RoomStateRecord {
   );
 }
 
+export function getSettlementWinnerUids(
+  settlement: HandSettlement,
+): readonly string[] {
+  return settlement.winnerUids ?? [settlement.winnerUid];
+}
+
+function uniqueUids(uids: readonly string[]): string[] {
+  return Array.from(new Set(uids.filter((uid) => uid.length > 0)));
+}
+
+function formatWinnerName(winnerNames: readonly string[]): string {
+  return winnerNames.join(", ");
+}
+
+function assertNoFoldedWinners(
+  winners: readonly { hasFolded?: boolean }[],
+): void {
+  if (winners.some((winner) => winner.hasFolded)) {
+    throw new SettleHandError("Folded players cannot be selected as winner.", {
+      code: "winner-folded",
+    });
+  }
+}
+
+function getSplitShares({
+  pot,
+  winnerUids,
+}: {
+  pot: number;
+  winnerUids: readonly string[];
+}): Map<string, number> {
+  const baseShare = Math.floor(pot / winnerUids.length);
+  let remaining = pot - baseShare * winnerUids.length;
+  const shares = new Map<string, number>();
+
+  winnerUids.forEach((uid) => {
+    const extra = remaining > 0 ? 1 : 0;
+    shares.set(uid, baseShare + extra);
+    remaining -= extra;
+  });
+
+  return shares;
+}
+
 function createSettlement(
   hand: HoldemGameState,
   handNumber: number,
-  winnerUid: string,
+  winnerUidsInput: readonly string[],
 ): HandSettlement {
-  const winner = hand.players.find((player) => player.uid === winnerUid);
+  const winnerUids = uniqueUids(winnerUidsInput);
+  const winners = winnerUids.map((winnerUid) =>
+    hand.players.find((player) => player.uid === winnerUid),
+  );
 
-  if (!winner) {
+  if (winnerUids.length === 0 || winners.some((winner) => !winner)) {
     throw new SettleHandError("Selected winner is not in this hand.", {
       code: "winner-not-found",
     });
   }
 
+  const foundWinners = winners.filter((winner) => winner !== undefined);
+
+  assertNoFoldedWinners(foundWinners);
+
+  const splitShares = getSplitShares({ pot: hand.pot, winnerUids });
   const playerResults = hand.players.reduce<
     Record<string, HandSettlementPlayerResult>
   >((results, player) => {
     const contribution = player.totalContribution;
+    const splitShare = splitShares.get(player.uid);
 
-    results[player.uid] = {
-      uid: player.uid,
-      displayName: player.displayName,
-      contribution,
-      net: player.uid === winnerUid ? hand.pot - contribution : -contribution,
+      results[player.uid] = {
+        uid: player.uid,
+        displayName: player.displayName,
+        contribution,
+        net:
+          splitShare === undefined ? -contribution : splitShare - contribution,
+        hasFolded: player.hasFolded,
+      };
+
+    return results;
+  }, {});
+  const winnerNames = foundWinners.map((winner) => winner.displayName);
+  const primaryWinnerUid = winnerUids[0];
+
+  return {
+    handNumber,
+    winnerUid: primaryWinnerUid,
+    winnerUids,
+    winnerName: formatWinnerName(winnerNames),
+    pot: hand.pot,
+    playerResults,
+  };
+}
+
+function isHandSettlementPlayerResult(
+  value: unknown,
+): value is HandSettlementPlayerResult {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const result = value as Record<string, unknown>;
+
+  return (
+    typeof result.uid === "string" &&
+    typeof result.displayName === "string" &&
+    typeof result.contribution === "number" &&
+    typeof result.net === "number" &&
+    (result.hasFolded === undefined || typeof result.hasFolded === "boolean")
+  );
+}
+
+function isHandSettlement(value: unknown): value is HandSettlement {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const settlement = value as Record<string, unknown>;
+  const playerResults = settlement.playerResults;
+
+  if (!playerResults || typeof playerResults !== "object") {
+    return false;
+  }
+
+  return (
+    typeof settlement.handNumber === "number" &&
+    typeof settlement.winnerUid === "string" &&
+    (settlement.winnerUids === undefined ||
+      (Array.isArray(settlement.winnerUids) &&
+        settlement.winnerUids.every((uid) => typeof uid === "string"))) &&
+    typeof settlement.winnerName === "string" &&
+    typeof settlement.pot === "number" &&
+    Object.values(playerResults).every(isHandSettlementPlayerResult)
+  );
+}
+
+function recalculateSettlementWinners(
+  settlement: HandSettlement,
+  winnerUidsInput: readonly string[],
+): HandSettlement {
+  const winnerUids = uniqueUids(winnerUidsInput);
+  const winnerResults = winnerUids.map(
+    (winnerUid) => settlement.playerResults[winnerUid],
+  );
+
+  if (winnerUids.length === 0 || winnerResults.some((result) => !result)) {
+    throw new SettleHandError("Selected winner is not in this hand.", {
+      code: "winner-not-found",
+    });
+  }
+
+  assertNoFoldedWinners(winnerResults);
+
+  const splitShares = getSplitShares({ pot: settlement.pot, winnerUids });
+  const playerResults = Object.values(settlement.playerResults).reduce<
+    Record<string, HandSettlementPlayerResult>
+  >((results, result) => {
+    const splitShare = splitShares.get(result.uid);
+
+    results[result.uid] = {
+      ...result,
+      net:
+        splitShare === undefined
+          ? -result.contribution
+          : splitShare - result.contribution,
     };
 
     return results;
   }, {});
+  const winnerNames = winnerResults.map(
+    (winnerResult) => winnerResult?.displayName ?? "Player",
+  );
+  const primaryWinnerUid = winnerUids[0];
 
   return {
-    handNumber,
-    winnerUid,
-    winnerName: winner.displayName,
-    pot: hand.pot,
+    ...settlement,
+    winnerUid: primaryWinnerUid,
+    winnerUids,
+    winnerName: formatWinnerName(winnerNames),
     playerResults,
   };
 }
@@ -145,9 +299,11 @@ function createSettlement(
 export async function settleHand({
   roomId,
   winnerUid,
+  winnerUids,
 }: {
   roomId: string;
-  winnerUid: string;
+  winnerUid?: string;
+  winnerUids?: string[];
 }): Promise<void> {
   try {
     const uid = getFirebaseAuth().currentUser?.uid;
@@ -203,7 +359,8 @@ export async function settleHand({
     }
 
     const handNumber = roomValue.gameState?.handNumber ?? 1;
-    const settlement = createSettlement(hand, handNumber, winnerUid);
+    const selectedWinnerUids = winnerUids ?? (winnerUid ? [winnerUid] : []);
+    const settlement = createSettlement(hand, handNumber, selectedWinnerUids);
     const currentBigBlindUid =
       roomValue.gameState?.currentBigBlindUid ?? roomValue.hostUid;
     const currentIndex = players.findIndex(
@@ -265,6 +422,131 @@ export async function settleHand({
     }
 
     throw new SettleHandError("Unable to settle hand. Please try again.", {
+      cause: error,
+    });
+  }
+}
+
+export async function correctHandWinner({
+  roomId,
+  handNumber,
+  winnerUid,
+  winnerUids,
+}: {
+  roomId: string;
+  handNumber: number;
+  winnerUid?: string;
+  winnerUids?: string[];
+}): Promise<void> {
+  try {
+    const uid = getFirebaseAuth().currentUser?.uid;
+
+    if (!uid) {
+      throw new SettleHandError("Please sign in before editing the winner.", {
+        code: "unauthenticated",
+      });
+    }
+
+    const database = getRealtimeDatabase();
+    const [hostSnapshot, settlementsSnapshot, settlementSnapshot] =
+      await Promise.all([
+      get(ref(database, `rooms/${roomId}/hostUid`)),
+      get(ref(database, `rooms/${roomId}/gameState/settlements`)),
+      get(ref(database, `rooms/${roomId}/gameState/settlements/${handNumber}`)),
+    ]);
+    const hostUid: unknown = hostSnapshot.val();
+    const settlementsValue: unknown = settlementsSnapshot.val();
+    const settlementValue: unknown = settlementSnapshot.val();
+
+    if (hostUid !== uid) {
+      throw new SettleHandError("Only the host can edit the winner.", {
+        code: "permission-denied",
+      });
+    }
+
+    if (!settlementsValue || typeof settlementsValue !== "object") {
+      throw new SettleHandError("Hand settlement is incomplete.", {
+        code: "settlement-invalid",
+      });
+    }
+
+    const latestHandNumber = Object.values(
+      settlementsValue as Record<string, unknown>,
+    )
+      .filter(isHandSettlement)
+      .reduce(
+        (latest, settlement) => Math.max(latest, settlement.handNumber),
+        0,
+      );
+
+    if (handNumber !== latestHandNumber) {
+      throw new SettleHandError(
+        "Only the latest finished hand can be edited.",
+        {
+          code: "not-latest-hand",
+        },
+      );
+    }
+
+    if (!isHandSettlement(settlementValue)) {
+      throw new SettleHandError("Hand settlement is incomplete.", {
+        code: "settlement-invalid",
+      });
+    }
+
+    const selectedWinnerUids = uniqueUids(
+      winnerUids ?? (winnerUid ? [winnerUid] : []),
+    );
+    const existingWinnerUids = getSettlementWinnerUids(settlementValue);
+
+    if (
+      existingWinnerUids.length === selectedWinnerUids.length &&
+      existingWinnerUids.every(
+        (existingWinnerUid, index) =>
+          existingWinnerUid === selectedWinnerUids[index],
+      )
+    ) {
+      return;
+    }
+
+    const correctedSettlement = recalculateSettlementWinners(
+      settlementValue,
+      selectedWinnerUids,
+    );
+
+    await update(ref(database), {
+      [`rooms/${roomId}/gameState/settlements/${handNumber}`]: {
+        ...correctedSettlement,
+        correctedAt: serverTimestamp(),
+        correctedBy: uid,
+        previousWinnerUid: settlementValue.winnerUid,
+        previousWinnerUids: [...existingWinnerUids],
+        previousWinnerName: settlementValue.winnerName,
+      },
+      [`rooms/${roomId}/updatedAt`]: serverTimestamp(),
+    });
+  } catch (error) {
+    if (error instanceof SettleHandError) {
+      throw error;
+    }
+
+    if (error instanceof FirebaseError) {
+      const message =
+        error.code === "PERMISSION_DENIED" || error.code === "permission-denied"
+          ? "Only the host can edit the winner."
+          : error.message;
+
+      throw new SettleHandError(message, {
+        cause: error,
+        code: error.code,
+      });
+    }
+
+    if (error instanceof Error) {
+      throw new SettleHandError(error.message, { cause: error });
+    }
+
+    throw new SettleHandError("Unable to edit winner. Please try again.", {
       cause: error,
     });
   }
