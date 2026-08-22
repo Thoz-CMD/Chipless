@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { CSSProperties } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { CommunityCards } from "@/features/game/community-cards";
 import type {
@@ -102,27 +103,30 @@ function formatAmount(amount: number): string {
   return amount.toLocaleString("en-US");
 }
 
-function formatAction(entry: HoldemActionLogEntry): string {
+function formatAction(entry: HoldemActionLogEntry, t: (key: string) => string): string {
+  const actionKey = entry.action.toLowerCase();
+  const translatedAction = t(actionKey);
+  
   return entry.amount === undefined
-    ? entry.action
-    : `${entry.action} ${formatAmount(entry.amount)}`;
+    ? translatedAction
+    : `${translatedAction} ${formatAmount(entry.amount)}`;
 }
 
-function getRevealStatus(bettingRound?: BettingRound): string | null {
+function getRevealStatus(bettingRound: BettingRound | undefined, t: (key: string) => string): string | null {
   if (bettingRound === "flop") {
-    return "Reveal Flop cards";
+    return t("reveal_flop");
   }
 
   if (bettingRound === "turn") {
-    return "Reveal Turn card";
+    return t("reveal_turn");
   }
 
   if (bettingRound === "river") {
-    return "Reveal River card";
+    return t("reveal_river");
   }
 
   if (bettingRound === "showdown") {
-    return "Reveal showdown cards";
+    return t("reveal_showdown");
   }
 
   return null;
@@ -171,6 +175,8 @@ export function GameTable({
 }) {
   const [draggingUid, setDraggingUid] = useState<string | null>(null);
   const [dragTargetUid, setDragTargetUid] = useState<string | null>(null);
+  const t = useTranslations("game");
+  const tActions = useTranslations("actions");
   const seatedPlayers = orderPlayersForSeats(players, currentUid);
   const seatCoordinatesByUid = new Map(
     seatedPlayers.map((player, index) => [
@@ -190,7 +196,7 @@ export function GameTable({
     actionLog?.some((entry) => entry.bettingRound === bettingRound);
   const revealStatus = hasActionInCurrentRound
     ? null
-    : getRevealStatus(bettingRound);
+    : getRevealStatus(bettingRound, t);
 
   async function swapSeats(targetUid: string) {
     if (!draggingUid || draggingUid === targetUid) {
@@ -240,14 +246,14 @@ export function GameTable({
 
       <div className="absolute top-[48%] left-1/2 w-[74%] -translate-x-1/2 -translate-y-1/2 space-y-3 text-center">
         <div className="mx-auto w-fit rounded-full border border-white/20 bg-black/60 px-5 py-2 text-white">
-          <span className="text-sm text-white/45">Pot</span>{" "}
+          <span className="text-sm text-white/45">{t("pot")}</span>{" "}
           <span className="text-xl font-semibold">
             {potAmount.toLocaleString("en-US")}
           </span>
           {currentPlayerContribution !== undefined ? (
             <>
               <span className="mx-1 text-white/35">:</span>
-              <span className="text-sm text-white/45">You</span>{" "}
+              <span className="text-sm text-white/45">{t("you")}</span>{" "}
               <span className="text-xl font-semibold">
                 {currentPlayerContribution.toLocaleString("en-US")}
               </span>{" "}
@@ -258,7 +264,7 @@ export function GameTable({
           <div className="mx-auto flex min-h-20 w-full max-w-[260px] flex-col items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-black/45 px-3 py-2 shadow-[inset_0_0_18px_rgba(255,255,255,0.05)]">
             {latestWinnerName ? (
               <div className="mb-0.5 w-full rounded-lg border border-yellow-300/45 bg-yellow-300/15 px-3 py-1.5 text-sm font-bold text-yellow-200">
-                Winner: {latestWinnerName}
+                {t("winner")}: {latestWinnerName}
               </div>
             ) : null}
             {revealStatus ? (
@@ -297,7 +303,7 @@ export function GameTable({
                         isLatest ? "font-bold text-white" : "text-white/60"
                       }`}
                     >
-                      {formatAction(entry)}
+                      {formatAction(entry, tActions)}
                     </span>
                   </div>
                 );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/routing";
 import { toast } from "sonner";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";

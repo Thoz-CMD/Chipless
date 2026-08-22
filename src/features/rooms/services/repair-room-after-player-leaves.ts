@@ -110,13 +110,20 @@ export async function repairRoomAfterPlayerLeaves({
   leavingUid: string;
 }): Promise<void> {
   const database = getRealtimeDatabase();
-  const [roomSnapshot, playersSnapshot] = await Promise.all([
+  const [roomSnapshot, playersSnapshot, roomSecretsSnapshot] = await Promise.all([
     get(ref(database, `rooms/${roomId}`)),
     get(ref(database, `roomPlayers/${roomId}`)),
+    get(ref(database, `roomSecrets/${roomId}`)),
   ]);
   const roomValue: unknown = roomSnapshot.val();
 
   if (!isRoomRecord(roomValue)) {
+    return;
+  }
+
+  // If the host is leaving, do not auto-transfer host here.
+  // Host-driven room deletion should remove the room instead.
+  if (leavingUid === roomValue.hostUid) {
     return;
   }
 
@@ -139,9 +146,12 @@ export async function repairRoomAfterPlayerLeaves({
     getNextBigBlindUid(roomValue, allPlayers, remainingPlayers) ?? nextHostUid;
   const updates: Record<string, unknown> = {
     [`rooms/${roomId}/hostUid`]: nextHostUid,
-    [`roomSecrets/${roomId}/hostUid`]: nextHostUid,
     [`rooms/${roomId}/updatedAt`]: serverTimestamp(),
   };
+
+  if (roomSecretsSnapshot.exists()) {
+    updates[`roomSecrets/${roomId}/hostUid`] = nextHostUid;
+  }
 
   if (roomValue.gameState?.handNumber !== undefined) {
     updates[`rooms/${roomId}/gameState/currentBigBlindUid`] = nextBigBlindUid;

@@ -1,14 +1,22 @@
 import Image from "next/image";
-import NextLink from "next/link";
+import { Link } from "@/i18n/routing";
 import { ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { CreateRoomPlayerNameForm } from "@/features/rooms/create-room-player-name-form";
+import { SetupPlayerNameForm } from "@/features/rooms/setup-player-name-form";
 
 const backgroundSrc =
   "/images/background/ChatGPT Image 27 ก.ค. 2569 18_21_14.png";
 
-export default function CreateRoomSetupNamePage() {
+type SetupNamePageProps = {
+  params: Promise<{
+    roomId: string;
+  }>;
+};
+
+export default async function SetupNamePage({ params }: SetupNamePageProps) {
+  const { roomId } = await params;
+
   return (
     <main className="relative min-h-dvh overflow-hidden bg-black text-white">
       <Image
@@ -29,9 +37,9 @@ export default function CreateRoomSetupNamePage() {
             size="icon"
             className="rounded-full border border-white/25 bg-black/35 text-white hover:bg-white/10 hover:text-white"
           >
-            <NextLink href="/create-room" aria-label="Back to create room">
+            <Link href="/" aria-label="Back to home">
               <ArrowLeft className="size-5" aria-hidden="true" />
-            </NextLink>
+            </Link>
           </Button>
         </header>
 
@@ -44,7 +52,7 @@ export default function CreateRoomSetupNamePage() {
           </p>
         </section>
 
-        <CreateRoomPlayerNameForm />
+        <SetupPlayerNameForm roomId={roomId} />
       </div>
     </main>
   );

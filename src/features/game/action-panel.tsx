@@ -3,6 +3,7 @@
 import { Minus, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import {
   getAvailableActions,
@@ -43,16 +44,18 @@ function getActionButtonLabel({
   action,
   betAmount,
   maxAmount,
+  t,
 }: {
   action: AvailableAction;
   betAmount: number;
   maxAmount: number;
+  t: (key: string) => string;
 }): string {
   if (action.type === "bet" || action.type === "raise") {
-    return `${action.label} ${formatAmount(getAggressiveActionAmount(action, betAmount, maxAmount))}`;
+    return `${t(action.type)} ${formatAmount(getAggressiveActionAmount(action, betAmount, maxAmount))}`;
   }
 
-  return action.label;
+  return t(action.type);
 }
 
 function isAggressiveAction(
@@ -106,6 +109,9 @@ export function ActionPanel({
   initialGameState: HoldemGameState;
   currentUid: string;
 }) {
+  const t = useTranslations("game");
+  const tCommon = useTranslations("common");
+  const tActions = useTranslations("actions");
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
   const gameState = initialGameState;
   const currentPosition = gameState.players.findIndex(
@@ -143,7 +149,7 @@ export function ActionPanel({
 
   const presets = [
     {
-      label: `Min (${formatAmount(minimumActionAmount)})`,
+      label: `${t("min")} (${formatAmount(minimumActionAmount)})`,
       value: minimumActionAmount,
     },
     {
@@ -222,12 +228,12 @@ export function ActionPanel({
     <section className="rounded-xl border border-white/30 bg-black/70 p-3 shadow-[0_0_24px_rgba(255,255,255,0.08)]">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs text-white/55">Your Bet</p>
+          <p className="text-xs text-white/55">{t("your_bet")}</p>
           <div className="flex items-baseline text-white">
             <span className="inline-block w-[3.3rem] text-2xl font-semibold tabular-nums">
               {formatAmount(currentBet)}
             </span>
-            <span className="text-sm font-semibold text-white/45">THB</span>
+            <span className="text-sm font-semibold text-white/45">{tCommon("currency")}</span>
           </div>
         </div>
         <button
@@ -239,7 +245,7 @@ export function ActionPanel({
           }
           disabled={currentBet <= minimumActionAmount}
           className="grid size-10 place-items-center rounded-lg border border-white/25 text-white/70 disabled:opacity-35"
-          aria-label="Decrease bet"
+          aria-label={t("decrease_bet")}
         >
           <Minus className="size-5" aria-hidden="true" />
         </button>
@@ -263,7 +269,7 @@ export function ActionPanel({
             style={{
               background: `linear-gradient(to right, white 0%, white ${sliderProgress}%, rgba(255,255,255,0.2) ${sliderProgress}%, rgba(255,255,255,0.2) 100%)`,
             }}
-            aria-label="Bet amount"
+            aria-label={t("bet_amount")}
           />
         </div>
         <button
@@ -275,7 +281,7 @@ export function ActionPanel({
           }
           disabled={currentBet >= maximumActionAmount}
           className="grid size-10 place-items-center rounded-lg border border-white/25 text-white/70 disabled:opacity-35"
-          aria-label="Increase bet"
+          aria-label={t("increase_bet")}
         >
           <Plus className="size-5" aria-hidden="true" />
         </button>
@@ -324,6 +330,7 @@ export function ActionPanel({
               action,
               betAmount: currentBet,
               maxAmount: maximumActionAmount,
+              t: tActions,
             })}
           </button>
         ))}

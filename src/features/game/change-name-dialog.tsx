@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { UserRoundCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -52,6 +53,8 @@ export function ChangeNameDialog({
   open,
   onOpenChange,
 }: ChangeNameDialogProps) {
+  const t = useTranslations("profile");
+  const tCommon = useTranslations("common");
   const form = useForm<PlayerNameFormValues>({
     resolver: zodResolver(playerNameSchema),
     defaultValues: {
@@ -75,13 +78,13 @@ export function ChangeNameDialog({
       saveLastPlayerName(values.displayName);
       saveLastPlayerPhoto(values.photoUrl);
       await updatePlayerName(roomId, values);
-      toast.success("Profile updated.");
+      toast.success(t("profile_updated"));
       onOpenChange(false);
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : "Unable to update profile. Please try again.";
+          : t("profile_update_error");
 
       toast.error(message);
     }
@@ -91,9 +94,9 @@ export function ChangeNameDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="border-white/35 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.16)]">
         <DialogHeader>
-          <DialogTitle>Edit Profile</DialogTitle>
+          <DialogTitle>{t("edit_profile")}</DialogTitle>
           <DialogDescription className="text-white/60">
-            Update your name and photo for this room.
+            {t("edit_profile_description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -123,11 +126,11 @@ export function ChangeNameDialog({
                 <FormItem>
                   <FormLabel className="text-white">
                     <UserRoundCheck className="size-5" aria-hidden="true" />
-                    Player Name
+                    {t("player_name")}
                   </FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="Enter new name"
+                      placeholder={t("player_name_placeholder")}
                       autoComplete="off"
                       maxLength={20}
                       className="h-14 border-white/40 bg-black/35 text-base text-white placeholder:text-white/45 focus-visible:ring-white/40"
@@ -147,7 +150,7 @@ export function ChangeNameDialog({
                   disabled={form.formState.isSubmitting}
                   className="text-white/70 hover:bg-white/10 hover:text-white"
                 >
-                  Cancel
+                  {tCommon("cancel")}
                 </Button>
               </DialogClose>
               <Button
@@ -155,7 +158,7 @@ export function ChangeNameDialog({
                 disabled={form.formState.isSubmitting}
                 className="border border-white bg-white font-bold text-black hover:bg-neutral-100"
               >
-                {form.formState.isSubmitting ? "Saving..." : "Save Profile"}
+                {form.formState.isSubmitting ? tCommon("saving") : t("save_profile")}
               </Button>
             </DialogFooter>
           </form>

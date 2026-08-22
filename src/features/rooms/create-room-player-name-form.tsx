@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import NextLink from "next/link";
+import { Link } from "@/i18n/routing";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, UserRoundCheck } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/routing";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -43,6 +44,8 @@ type PendingCreateState =
 
 export function CreateRoomPlayerNameForm() {
   const router = useRouter();
+  const t = useTranslations("setup_name");
+  const tCommon = useTranslations("common");
   const [setupState, setSetupState] = useState<PendingCreateState>({
     status: "loading",
   });
@@ -92,7 +95,7 @@ export function CreateRoomPlayerNameForm() {
       });
 
       clearPendingCreateRoom();
-      toast.success("Room created.");
+      toast.success(t("button"));
       router.push(`/room/${roomId}`);
     } catch (error) {
       const message =
@@ -107,7 +110,7 @@ export function CreateRoomPlayerNameForm() {
   return (
     <section className="rounded-2xl border border-white/45 bg-black/55 p-5 shadow-[0_0_32px_rgba(255,255,255,0.12)] backdrop-blur-sm">
       {setupState.status === "loading" ? (
-        <p className="text-center text-sm text-white/65">Loading...</p>
+        <p className="text-center text-sm text-white/65">{tCommon("loading")}</p>
       ) : null}
 
       {setupState.status === "missing" ? (
@@ -119,10 +122,10 @@ export function CreateRoomPlayerNameForm() {
             asChild
             className="h-12 w-full rounded-lg border border-white bg-white text-base font-bold text-black hover:bg-neutral-100"
           >
-            <NextLink href="/create-room">
+            <Link href="/create-room">
               <ArrowLeft className="size-5" aria-hidden="true" />
               Back
-            </NextLink>
+            </Link>
           </Button>
         </div>
       ) : null}
@@ -131,13 +134,13 @@ export function CreateRoomPlayerNameForm() {
         <div className="space-y-6">
           <div className="text-center">
             <p className="text-xs tracking-[0.2em] text-white/45 uppercase">
-              Room
+              {tCommon("room")}
             </p>
             <h2 className="mt-1 text-2xl font-bold text-white">
               {setupState.draft.roomName}
             </h2>
             <p className="mt-3 text-base text-white/65">
-              Enter your name & profile
+              {t("subtitle")}
             </p>
           </div>
 
@@ -167,11 +170,11 @@ export function CreateRoomPlayerNameForm() {
                   <FormItem>
                     <FormLabel className="text-base text-white">
                       <UserRoundCheck className="size-5" aria-hidden="true" />
-                      Player Name
+                      {t("player_name")}
                     </FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Enter your name"
+                        placeholder={t("player_name_placeholder")}
                         autoComplete="off"
                         maxLength={20}
                         className="h-14 border-white/40 bg-black/35 text-base text-white placeholder:text-white/45 focus-visible:ring-white/40"
@@ -188,7 +191,7 @@ export function CreateRoomPlayerNameForm() {
                 disabled={form.formState.isSubmitting}
                 className="h-14 w-full rounded-lg border border-white bg-white text-lg font-bold text-black shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:bg-neutral-100"
               >
-                {form.formState.isSubmitting ? "Creating..." : "Continue"}
+                {form.formState.isSubmitting ? tCommon("creating") : t("button")}
               </Button>
             </form>
           </Form>

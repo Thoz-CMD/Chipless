@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Camera, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { compressImage } from "@/lib/utils/image-compression";
 
@@ -15,6 +16,9 @@ type AvatarPickerProps = {
 export function AvatarPicker({ value, onChange, name }: AvatarPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isCompressing, setIsCompressing] = useState(false);
+  const t = useTranslations("setup_name");
+  const tCommon = useTranslations("common");
+  const tToast = useTranslations("toasts");
   const initial = name?.trim().charAt(0).toUpperCase() || "?";
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
@@ -34,9 +38,9 @@ export function AvatarPicker({ value, onChange, name }: AvatarPickerProps) {
     try {
       const compressedDataUrl = await compressImage(file, 160, 0.8);
       onChange(compressedDataUrl);
-      toast.success("Profile picture updated.");
+      toast.success(tToast("profile_picture_updated"));
     } catch {
-      toast.error("Unable to process image. Please try another photo.");
+      toast.error(tToast("image_process_error"));
     } finally {
       setIsCompressing(false);
 
@@ -73,7 +77,7 @@ export function AvatarPicker({ value, onChange, name }: AvatarPickerProps) {
 
           {isCompressing ? (
             <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-xs font-semibold text-white">
-              Processing...
+              {tCommon("loading")}
             </div>
           ) : null}
         </button>
@@ -82,7 +86,7 @@ export function AvatarPicker({ value, onChange, name }: AvatarPickerProps) {
           type="button"
           onClick={() => inputRef.current?.click()}
           className="absolute right-0 bottom-0 flex size-8 items-center justify-center rounded-full border border-white/40 bg-neutral-900 text-white shadow-md transition-transform hover:scale-110"
-          title="Upload photo"
+          title={t("upload_photo")}
         >
           <Camera className="size-4" aria-hidden="true" />
         </button>
@@ -102,7 +106,7 @@ export function AvatarPicker({ value, onChange, name }: AvatarPickerProps) {
           onClick={() => inputRef.current?.click()}
           className="text-xs font-medium text-white/80 underline-offset-4 hover:underline"
         >
-          {value ? "Change photo" : "Upload photo"}
+          {value ? t("change_photo") : t("upload_photo")}
         </button>
 
         {value ? (
@@ -114,7 +118,7 @@ export function AvatarPicker({ value, onChange, name }: AvatarPickerProps) {
               className="flex items-center gap-1 text-xs font-medium text-red-400/90 underline-offset-4 hover:text-red-300 hover:underline"
             >
               <Trash2 className="size-3" aria-hidden="true" />
-              Remove
+              {t("remove_photo")}
             </button>
           </>
         ) : null}

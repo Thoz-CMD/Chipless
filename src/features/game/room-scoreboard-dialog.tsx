@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Crown, Trophy, UserPen } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -201,6 +202,8 @@ export function RoomScoreboardDialog({
   onChangeName?: () => void;
   onSelectPlayer?: (player: RoomPlayerListItem) => void;
 }) {
+  const t = useTranslations("game_summary");
+  const tCommon = useTranslations("common");
   const [expandedHands, setExpandedHands] = useState<Set<number>>(new Set());
   const [isLeaderboardOpen, setIsLeaderboardOpen] = useState(false);
   const [editingWinnerHandNumber, setEditingWinnerHandNumber] = useState<
@@ -248,7 +251,7 @@ export function RoomScoreboardDialog({
     const updateKey = `${handNumber}:${winnerUids.join("-")}`;
 
     if (handNumber !== latestSettlementHandNumber) {
-      toast.error("Only the latest finished hand can be edited.");
+      toast.error(t("only_latest_hand_edit"));
       setEditingWinnerHandNumber(null);
       setEditingWinnerUids(new Set());
       return;
@@ -262,14 +265,14 @@ export function RoomScoreboardDialog({
 
     try {
       await correctHandWinner({ roomId, handNumber, winnerUids });
-      toast.success(`Hand #${handNumber} winner updated.`);
+      toast.success(t("hand_winner_updated", { handNumber }));
       setEditingWinnerHandNumber(null);
       setEditingWinnerUids(new Set());
     } catch (error) {
       const message =
         error instanceof SettleHandError || error instanceof Error
           ? error.message
-          : "Unable to edit winner.";
+          : t("unable_to_edit_winner");
       toast.error(message);
     } finally {
       setUpdatingWinnerKey(null);
@@ -282,18 +285,18 @@ export function RoomScoreboardDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto border-white/35 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.16)]">
         <DialogHeader>
-          <DialogTitle>Game Summary</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription className="text-white/60">
-            Current room standing and personal ledger.
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="flex items-center justify-between rounded-xl border border-white/30 bg-white/10 p-3">
             <div>
-              <p className="text-xs text-white/60">Your Total Net</p>
+              <p className="text-xs text-white/60">{t("your_total_net")}</p>
               <p className="text-xl font-bold">
-                {formatAmount(grandTotal)} THB
+                {formatAmount(grandTotal)} {tCommon("currency")}
               </p>
             </div>
             {onChangeName ? (
@@ -308,7 +311,7 @@ export function RoomScoreboardDialog({
                 className="border-white/30 bg-white/10 text-xs text-white hover:bg-white/20 hover:text-white"
               >
                 <UserPen className="size-3.5" />
-                Change Name
+                {t("change_name")}
               </Button>
             ) : null}
           </div>
@@ -321,7 +324,7 @@ export function RoomScoreboardDialog({
             <div className="flex items-center gap-2">
               <Trophy className="size-4 text-amber-400" />
               <span className="text-xs font-bold tracking-wider text-white uppercase">
-                Room Leaderboard ({leaderboardRows.length})
+                {t("room_leaderboard")} ({leaderboardRows.length})
               </span>
             </div>
             {isLeaderboardOpen ? (
@@ -406,13 +409,12 @@ export function RoomScoreboardDialog({
                             ) : null}
                             {isCurrentUser ? (
                               <span className="rounded bg-white/20 px-1.5 py-0.5 text-[10px] font-semibold text-white/80">
-                                You
+                                {t("you")}
                               </span>
                             ) : null}
                           </p>
                           <p className="text-[11px] text-white/45">
-                            {row.handsPlayed} hand
-                            {row.handsPlayed === 1 ? "" : "s"}
+                            {row.handsPlayed} {row.handsPlayed === 1 ? t("hand") : t("hands")}
                           </p>
                         </div>
                       </div>
@@ -427,7 +429,7 @@ export function RoomScoreboardDialog({
                                 : "text-white/70"
                           }`}
                         >
-                          {formatAmount(row.net)} THB
+                          {formatAmount(row.net)} {tCommon("currency")}
                         </p>
                       </div>
                     </div>
@@ -435,7 +437,7 @@ export function RoomScoreboardDialog({
                 })
               ) : (
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center text-xs text-white/50">
-                  No scores recorded yet
+                  {t("no_scores_recorded")}
                 </div>
               )}
             </div>
@@ -443,7 +445,7 @@ export function RoomScoreboardDialog({
         </div>
 
         <section className="mt-2 space-y-2">
-          <h3 className="text-sm font-semibold text-white/70">Your Balance</h3>
+          <h3 className="text-sm font-semibold text-white/70">{t("your_balance")}</h3>
           {rows.length > 0 ? (
             rows.map((row) => (
               <div
@@ -460,20 +462,20 @@ export function RoomScoreboardDialog({
                         : "text-white/60"
                   }`}
                 >
-                  {formatAmount(row.net)} THB
+                  {formatAmount(row.net)} {tCommon("currency")}
                 </span>
               </div>
             ))
           ) : (
             <p className="rounded-lg border border-white/15 bg-white/5 px-3 py-3 text-center text-sm text-white/55">
-              No personal ledger yet.
+              {t("no_personal_ledger")}
             </p>
           )}
         </section>
 
         <section className="mt-2 space-y-2">
           <h3 className="text-sm font-semibold text-white/70">
-            Your Hand History
+            {t("your_hand_history")}
           </h3>
           {personalHistoryRows.length > 0 ? (
             personalHistoryRows
@@ -520,7 +522,7 @@ export function RoomScoreboardDialog({
                         </span>
                         <div className="flex items-center gap-2">
                           <span className="text-sm text-white/65">
-                            Pot {historyRow.pot.toLocaleString("en-US")} THB
+                            {t("pot")} {historyRow.pot.toLocaleString("en-US")} {tCommon("currency")}
                           </span>
                           {isExpanded ? (
                             <ChevronUp
@@ -536,7 +538,7 @@ export function RoomScoreboardDialog({
                         </div>
                       </div>
                       <p className="mt-1 text-sm text-white/65">
-                        <span>Winner: </span>
+                        <span>{t("winner")} </span>
                         <span className="font-semibold text-white">
                           {historyRow.winnerName}
                         </span>
@@ -547,7 +549,7 @@ export function RoomScoreboardDialog({
                               : "text-red-300"
                           }`}
                         >
-                          {formatAmount(historyRow.net)} THB
+                          {formatAmount(historyRow.net)} {tCommon("currency")}
                         </span>
                       </p>
                     </button>
@@ -556,7 +558,7 @@ export function RoomScoreboardDialog({
                       <div className="mt-3 space-y-1.5 border-t border-white/10 pt-2.5">
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-[11px] font-semibold tracking-wider text-white/45 uppercase">
-                            Hand Breakdown
+                            {t("hand_breakdown")}
                           </p>
                           {canEditThisWinner ? (
                             <Button
@@ -579,7 +581,7 @@ export function RoomScoreboardDialog({
                               }}
                               className="h-7 border-white/25 bg-white/10 px-2 text-[11px] text-white hover:bg-white/20 hover:text-white"
                             >
-                              Edit winner
+                              {t("edit_winner")}
                             </Button>
                           ) : null}
                         </div>
@@ -588,7 +590,7 @@ export function RoomScoreboardDialog({
                         editingWinnerHandNumber === historyRow.handNumber ? (
                           <div className="mb-2 rounded-lg border border-white/15 bg-black/45 p-2">
                             <p className="mb-2 text-[11px] font-semibold text-white/55">
-                              Select one or more actual winners
+                              {t("select_winners")}
                             </p>
                             <div className="grid gap-1.5">
                               {allPlayerResults.map((result) => {
@@ -636,10 +638,10 @@ export function RoomScoreboardDialog({
                                     </span>
                                     <span className="text-white/55">
                                       {isFolded
-                                        ? "Folded"
+                                        ? t("folded")
                                         : isSelectedWinner
-                                          ? "Selected"
-                                          : "Tap to add"}
+                                          ? t("selected")
+                                          : t("tap_to_add")}
                                     </span>
                                   </button>
                                 );
@@ -663,7 +665,7 @@ export function RoomScoreboardDialog({
                               }
                               className="mt-2 h-9 w-full border-white bg-white text-xs font-bold text-black hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-55"
                             >
-                              {updatingWinnerKey ? "Updating..." : "Save winners"}
+                              {updatingWinnerKey ? t("updating") : t("save_winners")}
                             </Button>
                           </div>
                         ) : null}
@@ -681,7 +683,7 @@ export function RoomScoreboardDialog({
                                 {latestName}
                                 {winnerUids.includes(result.uid) ? (
                                   <span className="ml-1 text-[10px] font-semibold text-amber-300">
-                                    (Winner)
+                                    ({t("winner").replace(":", "")})
                                   </span>
                                 ) : null}
                               </span>
@@ -694,7 +696,7 @@ export function RoomScoreboardDialog({
                                       : "text-white/50"
                                 }`}
                               >
-                                {formatAmount(result.net)} THB
+                                {formatAmount(result.net)} {tCommon("currency")}
                               </span>
                             </div>
                           );
@@ -706,7 +708,7 @@ export function RoomScoreboardDialog({
               })
           ) : (
             <p className="rounded-lg border border-white/15 bg-white/5 px-3 py-3 text-center text-sm text-white/55">
-              No personal hand history yet.
+              {t("no_personal_history")}
             </p>
           )}
         </section>

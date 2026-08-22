@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import {
   Dialog,
@@ -27,6 +28,9 @@ export function WinnerSelectDialog({
   hand: HoldemGameState;
   open: boolean;
 }) {
+  const t = useTranslations("winner_dialog");
+  const tCommon = useTranslations("common");
+  const tGame = useTranslations("game");
   const [selectedWinnerUids, setSelectedWinnerUids] = useState<Set<string>>(
     new Set(),
   );
@@ -63,13 +67,13 @@ export function WinnerSelectDialog({
 
     try {
       await settleHand({ roomId, winnerUids });
-      toast.success("Hand settled.");
+      toast.success(t("hand_settled"));
       setSelectedWinnerUids(new Set());
     } catch (error) {
       const message =
         error instanceof SettleHandError || error instanceof Error
           ? error.message
-          : "Unable to settle hand.";
+          : t("settle_error");
       toast.error(message);
     } finally {
       setIsSubmitting(false);
@@ -80,9 +84,9 @@ export function WinnerSelectDialog({
     <Dialog open={open}>
       <DialogContent className="border-white/35 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.16)] [&>button]:hidden">
         <DialogHeader>
-          <DialogTitle>Choose Winner</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription className="text-white/60">
-            Hand #{handNumber}. Select one or more players who win this pot.
+            {t("description", { handNumber })}
           </DialogDescription>
         </DialogHeader>
 
@@ -110,10 +114,10 @@ export function WinnerSelectDialog({
                 </span>
                 <span className="text-sm text-white/65">
                   {isFolded
-                    ? "Folded"
+                    ? tGame("folded")
                     : isSelected
-                      ? "Selected"
-                      : `Bet ${player.totalContribution.toLocaleString("en-US")} THB`}
+                      ? t("selected")
+                      : `${t("bet")} ${player.totalContribution.toLocaleString("en-US")} ${tCommon("currency")}`}
                 </span>
               </button>
             );
@@ -130,12 +134,12 @@ export function WinnerSelectDialog({
             className="h-12 w-full rounded-xl border border-white bg-white text-sm font-bold text-black transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-55"
           >
             {isSubmitting
-              ? "Saving..."
+              ? tCommon("saving")
               : selectedWinnerUids.size > 1
-                ? `Settle split pot (${selectedWinnerUids.size})`
+                ? t("settle_split_pot", { count: selectedWinnerUids.size })
                 : selectedWinnerUids.size === 1
-                  ? "Settle hand"
-                  : "Select winner to continue"}
+                  ? t("settle_hand")
+                  : t("select_winner")}
           </button>
         </div>
       </DialogContent>

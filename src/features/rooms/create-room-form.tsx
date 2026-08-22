@@ -2,8 +2,9 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CircleDollarSign, LockKeyhole, LogIn, UsersRound } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
+import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/routing";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +28,8 @@ const blindPresets = [1, 2, 5, 10] as const;
 
 export function CreateRoomForm() {
   const router = useRouter();
+  const t = useTranslations("create_room");
+  const tCommon = useTranslations("common");
 
   const form = useForm<CreateRoomFormValues>({
     resolver: zodResolver(createRoomSchema),
@@ -64,11 +67,11 @@ export function CreateRoomForm() {
               <FormItem>
                 <FormLabel className="text-base text-white">
                   <UsersRound className="size-5" aria-hidden="true" />
-                  Room Name
+                  {t("room_name")}
                 </FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="Enter room name"
+                    placeholder={t("room_name_placeholder")}
                     autoComplete="off"
                     className="h-14 border-white/40 bg-black/35 text-base text-white placeholder:text-white/45 focus-visible:ring-white/40"
                     {...field}
@@ -86,7 +89,7 @@ export function CreateRoomForm() {
               <FormItem>
                 <FormLabel className="text-base text-white">
                   <LockKeyhole className="size-5" aria-hidden="true" />
-                  Room PIN
+                  {t("room_pin")}
                 </FormLabel>
                 <FormControl>
                   <Input
@@ -94,14 +97,14 @@ export function CreateRoomForm() {
                     inputMode="numeric"
                     pattern="[0-9]*"
                     maxLength={6}
-                    placeholder="1234"
+                    placeholder={t("room_pin_placeholder")}
                     autoComplete="off"
                     className="h-14 border-white/40 bg-black/35 text-base text-white placeholder:text-white/45 focus-visible:ring-white/40"
                     {...field}
                   />
                 </FormControl>
                 <FormDescription className="text-white/55">
-                  Players will need this PIN to join the room.
+                  {t("room_pin_description")}
                 </FormDescription>
                 <FormMessage />
               </FormItem>
@@ -115,7 +118,7 @@ export function CreateRoomForm() {
               <FormItem>
                 <FormLabel className="text-base text-white">
                   <CircleDollarSign className="size-5" aria-hidden="true" />
-                  Big Blind (THB)
+                  {t("big_blind")}
                 </FormLabel>
                 <FormControl>
                   <div className="relative">
@@ -143,7 +146,7 @@ export function CreateRoomForm() {
                   </div>
                 </FormControl>
                 <FormDescription className="text-white/55">
-                  This is the amount required to open and reveal cards.
+                  {t("big_blind_description")}
                 </FormDescription>
 
                 <div className="grid grid-cols-4 gap-2 pt-1">
@@ -174,7 +177,7 @@ export function CreateRoomForm() {
           className="mt-8 h-14 w-full rounded-lg border border-white bg-white text-lg font-bold text-black shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:bg-neutral-100"
         >
           <LogIn className="size-7" aria-hidden="true" />
-          {form.formState.isSubmitting ? "Creating..." : "Create Room"}
+          {form.formState.isSubmitting ? tCommon("creating") : t("button")}
         </Button>
       </form>
     </Form>

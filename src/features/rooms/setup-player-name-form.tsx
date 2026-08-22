@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import NextLink from "next/link";
+import { Link } from "@/i18n/routing";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, UserRoundCheck } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/routing";
 import { get, ref } from "firebase/database";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -49,6 +50,10 @@ function isRoomNameValue(value: unknown): value is string {
 
 export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
   const router = useRouter();
+  const t = useTranslations("setup_name");
+  const tCommon = useTranslations("common");
+  const tRoom = useTranslations("room_summary");
+  const tToast = useTranslations("toasts");
   const [setupState, setSetupState] = useState<SetupNameState>({
     status: "loading",
   });
@@ -75,7 +80,7 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
         const uid = getFirebaseAuth().currentUser?.uid;
 
         if (!uid) {
-          throw new Error("Unable to identify current player.");
+          throw new Error(tRoom("unable_to_identify"));
         }
 
         const database = getRealtimeDatabase();
@@ -87,7 +92,7 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
         const playerValue: unknown = playerSnapshot.val();
 
         if (!isRoomNameValue(roomNameValue)) {
-          throw new Error("Room not found.");
+          throw new Error(tRoom("room_not_found"));
         }
 
         if (!playerSnapshot.exists() || !isRoomPlayerRecord(playerValue)) {
@@ -114,7 +119,7 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
         const message =
           error instanceof Error
             ? error.message
-            : "Unable to load setup page. Please try again.";
+            : tRoom("unable_to_load");
 
         if (isMounted) {
           setSetupState({ status: "error", message });
@@ -127,20 +132,20 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
     return () => {
       isMounted = false;
     };
-  }, [form, roomId, router]);
+  }, [form, roomId, router, tRoom]);
 
   async function onSubmit(values: PlayerNameFormValues) {
     try {
       saveLastPlayerName(values.displayName);
       saveLastPlayerPhoto(values.photoUrl);
       await updatePlayerName(roomId, values);
-      toast.success("Name and profile saved.");
+      toast.success(tToast("name_saved"));
       router.push(`/room/${roomId}`);
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : "Unable to save player name. Please try again.";
+          : tRoom("unable_to_load");
 
       toast.error(message);
     }
@@ -149,7 +154,7 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
   return (
     <section className="rounded-2xl border border-white/45 bg-black/55 p-5 shadow-[0_0_32px_rgba(255,255,255,0.12)] backdrop-blur-sm">
       {setupState.status === "loading" ? (
-        <p className="text-center text-sm text-white/65">Loading...</p>
+        <p className="text-center text-sm text-white/65">{tCommon("loading")}</p>
       ) : null}
 
       {setupState.status === "error" ? (
@@ -159,10 +164,10 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
             asChild
             className="h-12 w-full rounded-lg border border-white bg-white text-base font-bold text-black hover:bg-neutral-100"
           >
-            <NextLink href="/">
+            <Link href="/">
               <ArrowLeft className="size-5" aria-hidden="true" />
-              Back Home
-            </NextLink>
+              {tRoom("back_home")}
+            </Link>
           </Button>
         </div>
       ) : null}
@@ -171,13 +176,13 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
         <div className="space-y-6">
           <div className="text-center">
             <p className="text-xs tracking-[0.2em] text-white/45 uppercase">
-              Room
+              {tCommon("room")}
             </p>
             <h2 className="mt-1 text-2xl font-bold text-white">
               {setupState.roomName}
             </h2>
             <p className="mt-3 text-base text-white/65">
-              Enter your name & profile
+              {t("subtitle")}
             </p>
           </div>
 
@@ -207,11 +212,11 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
                   <FormItem>
                     <FormLabel className="text-base text-white">
                       <UserRoundCheck className="size-5" aria-hidden="true" />
-                      Player Name
+                      {t("player_name")}
                     </FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Enter your name"
+                        placeholder={t("player_name_placeholder")}
                         autoComplete="off"
                         maxLength={20}
                         className="h-14 border-white/40 bg-black/35 text-base text-white placeholder:text-white/45 focus-visible:ring-white/40"
@@ -228,7 +233,7 @@ export function SetupPlayerNameForm({ roomId }: { roomId: string }) {
                 disabled={form.formState.isSubmitting}
                 className="h-14 w-full rounded-lg border border-white bg-white text-lg font-bold text-black shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:bg-neutral-100"
               >
-                {form.formState.isSubmitting ? "Saving..." : "Continue"}
+                {form.formState.isSubmitting ? tCommon("saving") : t("button")}
               </Button>
             </form>
           </Form>

@@ -53,9 +53,10 @@ export async function transferRoomHost({
     }
 
     const database = getRealtimeDatabase();
-    const [roomSnapshot, targetSnapshot] = await Promise.all([
+    const [roomSnapshot, targetSnapshot, roomSecretsSnapshot] = await Promise.all([
       get(ref(database, `rooms/${roomId}`)),
       get(ref(database, `roomPlayers/${roomId}/${targetUid}`)),
+      get(ref(database, `roomSecrets/${roomId}`)),
     ]);
     const roomValue: unknown = roomSnapshot.val();
     const targetValue: unknown = targetSnapshot.val();
@@ -78,13 +79,18 @@ export async function transferRoomHost({
       });
     }
 
-    await update(ref(database), {
+    const updates: Record<string, unknown> = {
       [`rooms/${roomId}/hostUid`]: targetUid,
       [`rooms/${roomId}/updatedAt`]: serverTimestamp(),
-      [`roomSecrets/${roomId}/hostUid`]: targetUid,
       [`roomPlayers/${roomId}/${currentUid}/role`]: "player",
       [`roomPlayers/${roomId}/${targetUid}/role`]: "host",
-    });
+    };
+
+    if (roomSecretsSnapshot.exists()) {
+      updates[`roomSecrets/${roomId}/hostUid`] = targetUid;
+    }
+
+    await update(ref(database), updates);
   } catch (error) {
     if (error instanceof TransferRoomHostError) {
       throw error;

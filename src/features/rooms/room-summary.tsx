@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import NextLink from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "@/i18n/routing";
+import { useRouter } from "@/i18n/routing";
 import { ArrowLeft } from "lucide-react";
 import { get, off, onValue, ref } from "firebase/database";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { signInWithAnonymousAccount } from "@/features/auth/anonymous-auth";
@@ -83,6 +84,8 @@ function isRoomSummaryData(value: unknown): value is RoomSummaryData {
 
 export function RoomSummary({ roomId }: { roomId: string }) {
   const router = useRouter();
+  const t = useTranslations("room_summary");
+  const tToast = useTranslations("toasts");
   const repairedMissingPlayerKeys = useRef(new Set<string>());
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
   const [playersState, setPlayersState] = useState<PlayersState>({
@@ -103,7 +106,7 @@ export function RoomSummary({ roomId }: { roomId: string }) {
         const uid = getFirebaseAuth().currentUser?.uid;
 
         if (!uid) {
-          throw new Error("Unable to identify current player.");
+          throw new Error(t("unable_to_identify"));
         }
 
         const database = getRealtimeDatabase();
@@ -115,7 +118,7 @@ export function RoomSummary({ roomId }: { roomId: string }) {
         const playerValue: unknown = playerSnapshot.val();
 
         if (!snapshot.exists() || !isRoomSummaryData(value)) {
-          throw new Error("Room not found or data is incomplete.");
+          throw new Error(t("room_not_found"));
         }
 
         if (!playerSnapshot.exists() || !isRoomPlayerRecord(playerValue)) {
@@ -135,7 +138,7 @@ export function RoomSummary({ roomId }: { roomId: string }) {
         const message =
           error instanceof Error
             ? error.message
-            : "Unable to load room. Please try again.";
+            : t("unable_to_load");
 
         if (isMounted) {
           setLoadState({ status: "error", message });
@@ -148,7 +151,7 @@ export function RoomSummary({ roomId }: { roomId: string }) {
     return () => {
       isMounted = false;
     };
-  }, [roomId, router]);
+  }, [roomId, router, t]);
 
   useEffect(() => {
     if (loadState.status !== "loaded") {
@@ -182,7 +185,7 @@ export function RoomSummary({ roomId }: { roomId: string }) {
           if (isMounted) {
             setLoadState({
               status: "error",
-              message: "Room not found or data is incomplete.",
+              message: t("room_not_found"),
             });
           }
           return;
@@ -215,7 +218,7 @@ export function RoomSummary({ roomId }: { roomId: string }) {
         const message =
           error instanceof Error
             ? error.message
-            : "Unable to update player presence.";
+            : t("unable_to_presence");
         toast.error(message);
       });
 
@@ -319,7 +322,7 @@ export function RoomSummary({ roomId }: { roomId: string }) {
     <section>
       {loadState.status === "loading" ? (
         <div className="rounded-2xl border border-white/45 bg-black/55 p-5 text-center text-sm text-white/65 shadow-[0_0_32px_rgba(255,255,255,0.12)] backdrop-blur-sm">
-          Loading room...
+          {t("loading_room")}
         </div>
       ) : null}
 
@@ -330,17 +333,17 @@ export function RoomSummary({ roomId }: { roomId: string }) {
             asChild
             className="h-12 w-full rounded-lg border border-white bg-white text-base font-bold text-black hover:bg-neutral-100"
           >
-            <NextLink href="/">
+            <Link href="/">
               <ArrowLeft className="size-5" aria-hidden="true" />
-              Back Home
-            </NextLink>
+              {t("back_home")}
+            </Link>
           </Button>
         </div>
       ) : null}
 
       {loadState.status === "loaded" && playersState.status === "loading" ? (
         <div className="rounded-2xl border border-white/45 bg-black/55 p-5 text-center text-sm text-white/65 shadow-[0_0_32px_rgba(255,255,255,0.12)] backdrop-blur-sm">
-          Loading players...
+          {t("loading_players")}
         </div>
       ) : null}
 
@@ -351,10 +354,10 @@ export function RoomSummary({ roomId }: { roomId: string }) {
             asChild
             className="h-12 w-full rounded-lg border border-white bg-white text-base font-bold text-black hover:bg-neutral-100"
           >
-            <NextLink href="/">
+            <Link href="/">
               <ArrowLeft className="size-5" aria-hidden="true" />
-              Back Home
-            </NextLink>
+              {t("back_home")}
+            </Link>
           </Button>
         </div>
       ) : null}
