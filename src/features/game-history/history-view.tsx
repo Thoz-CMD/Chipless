@@ -9,6 +9,7 @@ import { subscribeGameHistory } from "./services/subscribe-game-history";
 import { HistoryRoomCard } from "./history-room-card";
 import type { GameHistoryListItem } from "./services/subscribe-game-history";
 import { getFirebaseAuth } from "@/lib/firebase/client";
+import { signInWithAnonymousAccount } from "@/features/auth/anonymous-auth";
 
 type LoadState =
   | { status: "loading" }
@@ -24,22 +25,47 @@ export function HistoryView() {
 
   useEffect(() => {
     const auth = getFirebaseAuth();
-    const currentUser = auth.currentUser;
+    
+    async function loadHistory() {
+      try {
+        // Sign in anonymously if not already signed in
+        let currentUser = auth.currentUser;
+        if (!currentUser) {
+          await signInWithAnonymousAccount();
+          currentUser = auth.currentUser;
+        }
 
-    if (!currentUser) {
-      setLoadState({
-        status: "error",
-        message: "Please sign in to view history.",
-      });
-      return;
+        if (!currentUser) {
+          setLoadState({
+            status: "error",
+            message: "Unable to authenticate.",
+          });
+          return;
+        }
+
+        const unsubscribe = subscribeGameHistory(currentUser.uid, (history) => {
+          setLoadState({ status: "ready", history });
+        });
+
+        return unsubscribe;
+      } catch (error) {
+        setLoadState({
+          status: "error",
+          message: "Unable to load history.",
+        });
+      }
     }
 
-    const unsubscribe = subscribeGameHistory(currentUser.uid, (history) => {
-      setLoadState({ status: "ready", history });
+    let unsubscribe: (() => void) | undefined;
+    
+    loadHistory().then((cleanup) => {
+      unsubscribe = cleanup;
     });
 
     return () => {
-      unsubscribe();
+      if (unsubscribe) {
+        unsubscribe();
+      }
     };
   }, []);
 

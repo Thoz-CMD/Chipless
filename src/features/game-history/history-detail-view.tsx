@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDatabase, ref, get } from "firebase/database";
 import { getFirebaseAuth } from "@/lib/firebase/client";
+import { signInWithAnonymousAccount } from "@/features/auth/anonymous-auth";
 import type { GameHistoryData } from "./services/save-game-history";
 import { RoomScoreboardDialog } from "@/features/game/room-scoreboard-dialog";
 import type { HandSettlement } from "@/features/rooms/services/settle-hand";
@@ -30,21 +31,28 @@ export function HistoryDetailView({ historyKey }: HistoryDetailViewProps) {
 
   useEffect(() => {
     const auth = getFirebaseAuth();
-    const currentUser = auth.currentUser;
 
-    if (!currentUser) {
-      setLoadState({
-        status: "error",
-        message: "Please sign in to view history.",
-      });
-      return;
-    }
+    async function loadHistoryDetail() {
+      try {
+        // Sign in anonymously if not already signed in
+        let currentUser = auth.currentUser;
+        if (!currentUser) {
+          await signInWithAnonymousAccount();
+          currentUser = auth.currentUser;
+        }
 
-    const db = getDatabase();
-    const historyRef = ref(db, `gameHistory/${currentUser.uid}/${historyKey}`);
+        if (!currentUser) {
+          setLoadState({
+            status: "error",
+            message: "Unable to authenticate.",
+          });
+          return;
+        }
 
-    get(historyRef)
-      .then((snapshot) => {
+        const db = getDatabase();
+        const historyRef = ref(db, `gameHistory/${currentUser.uid}/${historyKey}`);
+
+        const snapshot = await get(historyRef);
         if (!snapshot.exists()) {
           setLoadState({
             status: "error",
@@ -55,13 +63,15 @@ export function HistoryDetailView({ historyKey }: HistoryDetailViewProps) {
 
         const history = snapshot.val() as GameHistoryData;
         setLoadState({ status: "ready", history });
-      })
-      .catch(() => {
+      } catch (error) {
         setLoadState({
           status: "error",
           message: "Unable to load history.",
         });
-      });
+      }
+    }
+
+    loadHistoryDetail();
   }, [historyKey]);
 
   function handleBack() {
