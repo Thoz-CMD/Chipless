@@ -302,8 +302,7 @@ export function PlayerSummaryDialog({
               photoUrl={targetPlayer.photoUrl}
               winStreak={stats.currentStreak}
               isCurrentUser={isCurrentUser}
-              isSmallBlind={false}
-              isBigBlind={false}
+              isDealer={false}
               isCurrentTurn={false}
             />
           </div>
