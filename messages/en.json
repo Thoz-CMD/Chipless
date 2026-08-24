@@ -76,7 +76,10 @@
     "call": "Call",
     "bet": "Bet",
     "raise": "Raise",
-    "all_in": "All-In"
+    "all_in": "All-In",
+    "big_blind": "Big Blind",
+    "small_blind": "Small Blind",
+    "post_blind": "Post Blind"
   },
   "profile": {
     "edit_profile": "Edit Profile",

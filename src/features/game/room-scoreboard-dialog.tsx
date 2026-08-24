@@ -283,10 +283,10 @@ export function RoomScoreboardDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto border-white/35 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.16)]">
-        <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
-          <DialogDescription className="text-white/60">
+      <DialogContent className="max-h-[80vh] overflow-y-auto border-white/35 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.16)] top-[10%] translate-y-0">
+        <DialogHeader className="text-left">
+          <DialogTitle className="text-left">{t("title")}</DialogTitle>
+          <DialogDescription className="text-white/60 text-left">
             {t("description")}
           </DialogDescription>
         </DialogHeader>

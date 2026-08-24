@@ -76,7 +76,10 @@
     "call": "ตาม",
     "bet": "เดิมพัน",
     "raise": "เรซ",
-    "all_in": "ออลอิน"
+    "all_in": "ออลอิน",
+    "big_blind": "บิ๊กบลายด์",
+    "small_blind": "สมอลบลายด์",
+    "post_blind": "โพสต์บลายด์"
   },
   "profile": {
     "edit_profile": "แก้ไขโปรไฟล์",
@@ -140,7 +143,7 @@
     "title": "สรุปเกม",
     "description": "อันดับห้องและบัญชีส่วนตัว",
     "your_total_net": "ยอดรวมของคุณ",
-    "change_name": "เปลี่ยนชื่อ",
+    "change_name": "แก้ไขโปรไฟล์",
     "room_leaderboard": "กระดานคะแนนห้อง",
     "your_balance": "ยอดเงินของคุณ",
     "your_hand_history": "ประวัติการเล่น",

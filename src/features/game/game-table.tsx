@@ -34,7 +34,7 @@ function getSeatCoordinates(
   if (index === 0 || playerCount <= 1) {
     return {
       x: 50,
-      y: 82,
+      y: 88,
     };
   }
 
@@ -45,7 +45,7 @@ function getSeatCoordinates(
       : 180 + ((index - 1) * 180) / (upperSeatCount - 1);
   const radians = (angle * Math.PI) / 180;
   const radiusX = 39;
-  const radiusY = 35;
+  const radiusY = 42;
   const centerX = 50;
   const centerY = 50;
 
@@ -142,6 +142,8 @@ export function GameTable({
   currentPlayerContribution,
   currentSmallBlindUid,
   currentBigBlindUid,
+  smallBlindAmount,
+  bigBlindAmount,
   currentTurnUid,
   activeHandPlayerUids,
   foldedUids,
@@ -162,6 +164,8 @@ export function GameTable({
   currentPlayerContribution?: number;
   currentSmallBlindUid?: string;
   currentBigBlindUid?: string;
+  smallBlindAmount?: number;
+  bigBlindAmount?: number;
   currentTurnUid?: string;
   activeHandPlayerUids?: ReadonlySet<string>;
   foldedUids?: Set<string>;
@@ -177,6 +181,7 @@ export function GameTable({
   const [dragTargetUid, setDragTargetUid] = useState<string | null>(null);
   const t = useTranslations("game");
   const tActions = useTranslations("actions");
+  const tCommon = useTranslations("common");
   const seatedPlayers = orderPlayersForSeats(players, currentUid);
   const seatCoordinatesByUid = new Map(
     seatedPlayers.map((player, index) => [
@@ -191,12 +196,71 @@ export function GameTable({
       : playerUids.has(hostUid)
         ? hostUid
         : players[0]?.uid;
+  
+  // Calculate Dealer position (one position before Small Blind)
+  const dealerUid = currentSmallBlindUid 
+    ? (() => {
+        const sbIndex = seatedPlayers.findIndex(p => p.uid === currentSmallBlindUid);
+        if (sbIndex === -1) return undefined;
+        const dealerIndex = sbIndex === 0 ? seatedPlayers.length - 1 : sbIndex - 1;
+        return seatedPlayers[dealerIndex]?.uid;
+      })()
+    : undefined;
+  
   const hasActionInCurrentRound =
     bettingRound !== undefined &&
     actionLog?.some((entry) => entry.bettingRound === bettingRound);
   const revealStatus = hasActionInCurrentRound
     ? null
     : getRevealStatus(bettingRound, t);
+
+  // Get last action for each player in current betting round
+  const lastActionByUid = new Map<string, string>();
+  const lastActionAmountByUid = new Map<string, string>();
+  
+  if (actionLog && bettingRound) {
+    // Filter actions from current betting round only
+    const currentRoundActions = actionLog.filter(
+      (entry) => entry.bettingRound === bettingRound
+    );
+    
+    // Get the most recent action for each player
+    currentRoundActions.forEach((entry) => {
+      const actionKey = entry.action.toLowerCase();
+      const translatedAction = tActions(actionKey);
+      
+      lastActionByUid.set(entry.uid, translatedAction);
+      
+      // Store amount separately if available
+      if (entry.amount !== undefined) {
+        lastActionAmountByUid.set(
+          entry.uid,
+          `${formatAmount(entry.amount)} ${tCommon("currency")}`
+        );
+      }
+    });
+  }
+
+  // Show BB/SB badges at round start (preflop with no actions yet)
+  if (bettingRound === "preflop" && smallBlindAmount && bigBlindAmount) {
+    // Add SB badge if player has no action yet
+    if (currentSmallBlindUid && !lastActionByUid.has(currentSmallBlindUid)) {
+      lastActionByUid.set(currentSmallBlindUid, tActions("small_blind"));
+      lastActionAmountByUid.set(
+        currentSmallBlindUid,
+        `${formatAmount(smallBlindAmount)} ${tCommon("currency")}`
+      );
+    }
+    
+    // Add BB badge if player has no action yet
+    if (bigBlindUid && !lastActionByUid.has(bigBlindUid)) {
+      lastActionByUid.set(bigBlindUid, tActions("big_blind"));
+      lastActionAmountByUid.set(
+        bigBlindUid,
+        `${formatAmount(bigBlindAmount)} ${tCommon("currency")}`
+      );
+    }
+  }
 
   async function swapSeats(targetUid: string) {
     if (!draggingUid || draggingUid === targetUid) {
@@ -240,83 +304,54 @@ export function GameTable({
   }
 
   return (
-    <section className="relative mx-auto aspect-[4/5] w-full max-w-[430px]">
-      <div className="absolute top-1/2 left-1/2 h-[76%] w-[66%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),rgba(0,0,0,0.92)_62%)] shadow-[inset_0_0_42px_rgba(255,255,255,0.08),0_0_28px_rgba(255,255,255,0.08)]" />
-      <div className="absolute top-1/2 left-1/2 h-[64%] w-[52%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-black/35" />
+    <section className="relative mx-auto h-full w-full">
+      <div className="absolute top-1/2 left-1/2 h-[82%] w-[66%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),rgba(0,0,0,0.92)_62%)] shadow-[inset_0_0_42px_rgba(255,255,255,0.08),0_0_28px_rgba(255,255,255,0.08)]" />
+      <div className="absolute top-1/2 left-1/2 h-[72%] w-[52%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-black/35" />
 
-      <div className="absolute top-[48%] left-1/2 w-[74%] -translate-x-1/2 -translate-y-1/2 space-y-3 text-center">
-        <div className="mx-auto w-fit rounded-full border border-white/20 bg-black/60 px-5 py-2 text-white">
-          <span className="text-sm text-white/45">{t("pot")}</span>{" "}
-          <span className="text-xl font-semibold">
-            {potAmount.toLocaleString("en-US")}
-          </span>
+      {/* Center table display - Logo and Community Cards */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3">
+        {/* Winner Announcement */}
+        {latestWinnerName ? (
+          <div className="animate-in fade-in zoom-in duration-500 px-5 py-2">
+            <span className="text-sm font-bold text-amber-200 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
+              ผู้ชนะ: {latestWinnerName}
+            </span>
+          </div>
+        ) : null}
+        
+        {/* Reveal Status (Flop, Turn, River, Showdown) */}
+        {revealStatus ? (
+          <div className="animate-in fade-in zoom-in duration-500 px-5 py-2">
+            <span className="text-sm font-bold text-amber-200 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
+              {revealStatus}
+            </span>
+          </div>
+        ) : null}
+        
+        {/* Pot and Player Contribution Display */}
+        <div className="flex items-center gap-3 rounded-full border border-white/20 bg-black/60 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm">
+          <div className="flex items-center gap-1.5">
+            <span className="text-white/70">พอท</span>
+            <span className="text-white font-bold text-base">{potAmount.toLocaleString()}</span>
+          </div>
           {currentPlayerContribution !== undefined ? (
             <>
-              <span className="mx-1 text-white/35">:</span>
-              <span className="text-sm text-white/45">{t("you")}</span>{" "}
-              <span className="text-xl font-semibold">
-                {currentPlayerContribution.toLocaleString("en-US")}
-              </span>{" "}
+              <span className="text-white/30">•</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-white/70">คุณ</span>
+                <span className="text-white font-bold text-base">{currentPlayerContribution.toLocaleString()}</span>
+              </div>
             </>
           ) : null}
         </div>
-        {latestWinnerName || (actionLog && actionLog.length > 0) ? (
-          <div className="mx-auto flex min-h-20 w-full max-w-[260px] flex-col items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-black/45 px-3 py-2 shadow-[inset_0_0_18px_rgba(255,255,255,0.05)]">
-            {latestWinnerName ? (
-              <div className="mb-0.5 w-full rounded-lg border border-yellow-300/45 bg-yellow-300/15 px-3 py-1.5 text-sm font-bold text-yellow-200">
-                {t("winner")}: {latestWinnerName}
-              </div>
-            ) : null}
-            {revealStatus ? (
-              <div className="mb-0.5 w-full rounded-lg border border-amber-300/60 bg-amber-300/15 px-3 py-1.5 text-center text-sm font-bold text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.22)]">
-                {revealStatus}
-              </div>
-            ) : null}
-            {(actionLog ?? [])
-              .slice(-3)
-              .reverse()
-              .map((entry, index) => {
-                const isLatest = index === 0;
-
-                return (
-                  <div
-                    key={entry.id}
-                    className={`flex w-full items-center justify-between gap-3 rounded-lg border px-3 transition-all ${
-                      isLatest
-                        ? "border-white/35 bg-white/15 py-1.5 text-sm font-bold text-white shadow-[0_0_12px_rgba(255,255,255,0.08)]"
-                        : "border-white/10 bg-white/5 py-1 text-xs text-white/60 opacity-60"
-                    }`}
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      {isLatest ? (
-                        <span
-                          className="size-1.5 shrink-0 animate-pulse rounded-full bg-yellow-300 shadow-[0_0_6px_rgba(253,224,71,0.9)]"
-                          aria-hidden="true"
-                        />
-                      ) : null}
-                      <span className="truncate font-semibold text-white">
-                        {entry.displayName}
-                      </span>
-                    </div>
-                    <span
-                      className={`shrink-0 ${
-                        isLatest ? "font-bold text-white" : "text-white/60"
-                      }`}
-                    >
-                      {formatAction(entry, tActions)}
-                    </span>
-                  </div>
-                );
-              })}
-          </div>
-        ) : (
-          <>
-            <CommunityCards />
-            <div className="space-y-1 text-xs text-white/35">
-              <p className="font-audiowide text-white/45">Chipless</p>
-            </div>
-          </>
-        )}
+        
+        {/* Community Cards */}
+        <CommunityCards bettingRound={bettingRound} />
+        
+        {/* Chipless Logo */}
+        <div className="font-audiowide text-white text-xs font-bold tracking-wider opacity-80">
+          CHIPLESS
+        </div>
       </div>
 
       {seatedPlayers.map((player, index) => (
@@ -324,8 +359,7 @@ export function GameTable({
           key={player.uid}
           player={player}
           isCurrentUser={player.uid === currentUid}
-          isSmallBlind={player.uid === currentSmallBlindUid}
-          isBigBlind={player.uid === bigBlindUid}
+          isDealer={player.uid === dealerUid}
           isCurrentTurn={player.uid === currentTurnUid}
           hasFolded={foldedUids?.has(player.uid)}
           isWaitingForNextHand={
@@ -337,10 +371,14 @@ export function GameTable({
             player.uid,
           )}
           winnerAmount={winnerAmountsByUid?.[player.uid]}
+          lastAction={lastActionByUid.get(player.uid)}
+          lastActionAmount={lastActionAmountByUid.get(player.uid)}
           style={getSeatPosition(
             seatCoordinatesByUid.get(player.uid) ??
               getSeatCoordinates(index, seatedPlayers.length),
           )}
+          seatCoordinates={seatCoordinatesByUid.get(player.uid) ??
+              getSeatCoordinates(index, seatedPlayers.length)}
           draggable={canArrangeSeats}
           isSelected={draggingUid === player.uid}
           isDragTarget={

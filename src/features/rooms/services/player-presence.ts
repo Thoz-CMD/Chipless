@@ -1,5 +1,6 @@
 import { FirebaseError } from "firebase/app";
 import {
+  get,
   onDisconnect,
   ref,
   remove,
@@ -90,6 +91,7 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
     const database = getRealtimeDatabase();
     const playerRef = ref(database, `roomPlayers/${roomId}/${uid}`);
     const disconnectOperation = onDisconnect(playerRef);
+    
     const markOnline = () => {
       void update(playerRef, {
         lastSeen: serverTimestamp(),
@@ -110,13 +112,6 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
 
       markOffline();
     };
-    const handlePageHide = () => {
-      removePlayerWithKeepalive({
-        roomId,
-        uid,
-        idToken: cachedIdToken,
-      });
-    };
     const refreshIdToken = () => {
       void getFirebaseAuth()
         .currentUser?.getIdToken()
@@ -128,30 +123,29 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
         });
     };
 
+    // Set player as online
     await update(playerRef, {
       lastSeen: serverTimestamp(),
       online: true,
     });
+    
+    // Set up disconnect handler - mark offline but DON'T delete
     await disconnectOperation.update({
       lastSeen: serverTimestamp(),
       online: false,
     });
+    
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("online", markOnline);
     window.addEventListener("focus", refreshIdToken);
-    window.addEventListener("pagehide", handlePageHide);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("online", markOnline);
       window.removeEventListener("focus", refreshIdToken);
-      window.removeEventListener("pagehide", handlePageHide);
       void disconnectOperation.cancel();
-      removePlayerWithKeepalive({
-        roomId,
-        uid,
-        idToken: cachedIdToken,
-      });
+      // Mark offline but don't delete - let the system handle cleanup
+      markOffline();
     };
   } catch (error) {
     if (error instanceof FirebaseError) {

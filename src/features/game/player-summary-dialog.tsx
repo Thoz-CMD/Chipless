@@ -283,7 +283,7 @@ export function PlayerSummaryDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto border-white/35 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.16)] sm:max-w-md">
+      <DialogContent className="max-h-[80vh] overflow-y-auto border-white/35 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.16)] sm:max-w-md top-[10%] translate-y-0">
         <DialogHeader className="text-left">
           <DialogTitle className="sr-only">
             {targetPlayer.displayName}&apos;s Game Summary
@@ -345,7 +345,7 @@ export function PlayerSummaryDialog({
                 <>
                   <span className="text-white/30">•</span>
                   <span
-                    className={`inline-flex items-center gap-1 font-bold ${
+                    className={`inline-flex items-center gap-1 font-bold whitespace-nowrap ${
                       isTop1
                         ? "text-amber-300 drop-shadow-[0_0_6px_rgba(251,191,36,0.5)]"
                         : isTop2

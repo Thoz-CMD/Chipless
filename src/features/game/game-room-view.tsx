@@ -413,7 +413,8 @@ export function GameRoomView({
   }
 
   return (
-    <div className="space-y-5">
+    <div className="fixed inset-0 flex justify-center">
+      <div className="w-full max-w-md md:max-w-none lg:max-w-lg xl:max-w-xl flex flex-col overflow-hidden p-4 md:p-8 lg:p-4">
       {shouldShowOnFireOverlay ? (
         <div
           className="chipless-on-fire-screen pointer-events-none fixed inset-0 z-40 overflow-hidden"
@@ -436,94 +437,105 @@ export function GameRoomView({
         </div>
       ) : null}
 
-      <GameHeader
-        roomName={room.name}
-        onCopyInviteLink={copyInviteLink}
-        onDeleteRoom={isHost ? handleOpenDeleteRoomDialog : undefined}
-        isDeletingRoom={isDeletingRoom}
-        onLeaveRoom={() => setIsLeaveRoomDialogOpen(true)}
-        isLeavingRoom={isLeavingRoom}
-        onOpenMenu={() => setIsScoreboardOpen(true)}
-        leaderboard={
-          <RoomLeaderboardPanel
-            players={players}
-            settlements={settlements}
-            currentUid={currentUid}
-            isVisible={isLeaderboardVisible}
-            onToggleVisible={() =>
-              setIsLeaderboardVisible((isVisible) => !isVisible)
-            }
-            onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
-          />
-        }
-      />
-
-      <div className="relative">
-        <GameTable
-          roomId={room.id}
-          players={players}
-          currentUid={currentUid}
-          hostUid={room.hostUid}
-          canArrangeSeats={isHost}
-          potAmount={holdemGameState?.pot ?? room.settings.bigBlind}
-          currentPlayerContribution={
-            holdemGameState?.players.find((player) => player.uid === currentUid)
-              ?.totalContribution
+      {/* Header - Fixed height */}
+      <div className="shrink-0">
+        <GameHeader
+          roomName={room.name}
+          onCopyInviteLink={copyInviteLink}
+          onDeleteRoom={isHost ? handleOpenDeleteRoomDialog : undefined}
+          isDeletingRoom={isDeletingRoom}
+          onLeaveRoom={() => setIsLeaveRoomDialogOpen(true)}
+          isLeavingRoom={isLeavingRoom}
+          onOpenMenu={() => setIsScoreboardOpen(true)}
+          leaderboard={
+            <RoomLeaderboardPanel
+              players={players}
+              settlements={settlements}
+              currentUid={currentUid}
+              isVisible={isLeaderboardVisible}
+              onToggleVisible={() =>
+                setIsLeaderboardVisible((isVisible) => !isVisible)
+              }
+              onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
+            />
           }
-          currentSmallBlindUid={
-            holdemGameState?.players[holdemGameState.smallBlindPosition]?.uid
-          }
-          currentBigBlindUid={room.gameState?.currentBigBlindUid}
-          currentTurnUid={
-            holdemGameState?.currentTurn === undefined
-              ? undefined
-              : holdemGameState.players[holdemGameState.currentTurn]?.uid
-          }
-          activeHandPlayerUids={activeHandPlayerUids}
-          foldedUids={foldedUids}
-          actionLog={
-            isGameStarted ? (holdemGameState?.actionLog ?? []) : undefined
-          }
-          bettingRound={holdemGameState?.bettingRound}
-          latestWinnerName={recentlySettledWinnerName}
-          winStreaksByUid={winStreaksByUid}
-          extinguishAnimation={extinguishAnimation}
-          winnerAmountsByUid={winnerAmountAnimation?.amountsByUid}
-          onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
         />
       </div>
 
-      {isGameStarted ? (
-        holdemGameState ? (
-          <ActionPanel
-            key={`${room.id}-${room.gameState?.handNumber ?? 1}-${players.map((player) => player.uid).join("-")}`}
+      {/* Game Table - Flexible space, centered */}
+      <div className="flex flex-1 items-center justify-center overflow-hidden">
+        <div className="relative aspect-[3/4] w-full max-w-[430px] md:max-w-[600px] lg:max-w-[430px]">
+          <GameTable
             roomId={room.id}
-            initialGameState={holdemGameState}
+            players={players}
             currentUid={currentUid}
+            hostUid={room.hostUid}
+            canArrangeSeats={isHost}
+            potAmount={holdemGameState?.pot ?? room.settings.bigBlind}
+            currentPlayerContribution={
+              holdemGameState?.players.find((player) => player.uid === currentUid)
+                ?.totalContribution
+            }
+            currentSmallBlindUid={
+              holdemGameState?.players[holdemGameState.smallBlindPosition]?.uid
+            }
+            currentBigBlindUid={room.gameState?.currentBigBlindUid}
+            smallBlindAmount={Math.max(1, Math.floor(room.settings.bigBlind / 2))}
+            bigBlindAmount={room.settings.bigBlind}
+            currentTurnUid={
+              holdemGameState?.currentTurn === undefined
+                ? undefined
+                : holdemGameState.players[holdemGameState.currentTurn]?.uid
+            }
+            activeHandPlayerUids={activeHandPlayerUids}
+            foldedUids={foldedUids}
+            actionLog={
+              isGameStarted ? (holdemGameState?.actionLog ?? []) : undefined
+            }
+            bettingRound={holdemGameState?.bettingRound}
+            latestWinnerName={recentlySettledWinnerName}
+            winStreaksByUid={winStreaksByUid}
+            extinguishAnimation={extinguishAnimation}
+            winnerAmountsByUid={winnerAmountAnimation?.amountsByUid}
+            onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
           />
-        ) : (
-          <section className="rounded-2xl border border-white/30 bg-black/70 p-4 text-center text-sm text-white/65 shadow-[0_0_24px_rgba(255,255,255,0.08)]">
-            Waiting for more players.
-          </section>
-        )
-      ) : (
-        <section className="rounded-2xl border border-white/30 bg-black/70 p-4 text-center shadow-[0_0_24px_rgba(255,255,255,0.08)]">
-          {isHost ? (
-            <button
-              type="button"
-              onClick={handleStartGame}
-              disabled={isStartingGame}
-              className="h-12 w-full rounded-lg border border-white bg-white text-base font-bold text-black disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isStartingGame ? "Starting..." : "Start Game"}
-            </button>
+        </div>
+      </div>
+
+      {/* Action Panel - Fixed height at bottom */}
+      <div className="shrink-0 border-t border-white/10 bg-black/50 p-0 backdrop-blur-sm">
+        {isGameStarted ? (
+          holdemGameState ? (
+            <ActionPanel
+              key={`${room.id}-${room.gameState?.handNumber ?? 1}-${players.map((player) => player.uid).join("-")}`}
+              roomId={room.id}
+              initialGameState={holdemGameState}
+              currentUid={currentUid}
+            />
           ) : (
-            <p className="text-sm text-white/65">
-              Waiting for host to start the game.
-            </p>
-          )}
-        </section>
-      )}
+            <section className="rounded-2xl border border-white/30 bg-black/70 p-4 text-center text-sm text-white/65 shadow-[0_0_24px_rgba(255,255,255,0.08)]">
+              Waiting for more players.
+            </section>
+          )
+        ) : (
+          <section className="rounded-2xl border border-white/30 bg-black/70 p-4 text-center shadow-[0_0_24px_rgba(255,255,255,0.08)]">
+            {isHost ? (
+              <button
+                type="button"
+                onClick={handleStartGame}
+                disabled={isStartingGame}
+                className="h-12 w-full rounded-lg border border-white bg-white text-base font-bold text-black disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isStartingGame ? "Starting..." : "Start Game"}
+              </button>
+            ) : (
+              <p className="text-sm text-white/65">
+                Waiting for host to start the game.
+              </p>
+            )}
+          </section>
+        )}
+      </div>
 
       <RoomScoreboardDialog
         open={isScoreboardOpen}
@@ -644,6 +656,7 @@ export function GameRoomView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

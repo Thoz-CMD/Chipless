@@ -28,25 +28,27 @@ export default async function Home() {
 
       <div className="absolute inset-0 bg-black/10" />
 
-      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[430px] flex-col justify-between px-6 pt-[calc(env(safe-area-inset-top)+clamp(36px,10svh,110px))] pb-[calc(env(safe-area-inset-bottom)+clamp(24px,5svh,42px))]">
-        <div className="flex flex-col items-center">
-          <div className="mb-4 flex w-full justify-end">
-            <LanguageSwitcher />
-          </div>
-          <Image
-            src={logoSrc}
-            alt="StackSplit"
-            width={280}
-            height={280}
-            priority
-            className="h-auto w-[min(68%,280px)] object-contain drop-shadow-[0_0_28px_rgba(255,255,255,0.32)]"
-          />
-          <h1 className="font-audiowide mt-[clamp(12px,2svh,24px)] text-center text-[clamp(42px,14vw,60px)] leading-none tracking-normal text-white drop-shadow-[0_0_14px_rgba(255,255,255,0.35)]">
-            {t("title")}
-          </h1>
+      <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[430px] flex-col items-center justify-center px-6 py-8">
+        <div className="absolute top-8 right-6 z-20">
+          <LanguageSwitcher />
         </div>
+        
+        <div className="flex flex-col items-center gap-24">
+          <div className="flex flex-col items-center">
+            <Image
+              src={logoSrc}
+              alt="StackSplit"
+              width={400}
+              height={400}
+              priority
+              className="h-auto w-[min(90%,400px)] object-contain drop-shadow-[0_0_28px_rgba(255,255,255,0.32)]"
+            />
+            <h1 className="font-audiowide mt-[clamp(12px,2svh,24px)] text-center text-[clamp(42px,14vw,60px)] leading-none tracking-normal text-white drop-shadow-[0_0_14px_rgba(255,255,255,0.35)]">
+              {t("title")}
+            </h1>
+          </div>
 
-        <section className="space-y-[clamp(14px,2.6svh,20px)] pb-[clamp(42px,12svh,120px)]">
+          <section className="w-full space-y-[clamp(14px,2.6svh,20px)]">
           <div className="grid grid-cols-2 gap-3">
             <Link
               href="/create-room"
@@ -81,6 +83,7 @@ export default async function Home() {
             </p>
           </div>
         </section>
+        </div>
       </div>
     </main>
   );

@@ -1,4 +1,4 @@
-import { ArrowLeft, Copy, Menu, Trash2 } from "lucide-react";
+import { ArrowLeft, Menu, Share2, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 
@@ -44,40 +44,41 @@ export function GameHeader({
           </p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={onCopyInviteLink}
-            className="flex h-11 shrink-0 items-center gap-2 rounded-lg border border-white/20 bg-black/45 px-3 text-xs font-semibold text-white focus:ring-2 focus:ring-white/60 focus:outline-none sm:text-sm"
-          >
-            <Copy className="size-4" aria-hidden="true" />
-            {t("copy_invite_link")}
-          </button>
+        <div className="flex shrink-0 items-center gap-1 rounded-lg border border-white/20 bg-black/45 p-1">
           {onDeleteRoom ? (
             <button
               type="button"
               onClick={onDeleteRoom}
               disabled={isDeletingRoom}
-              className="grid size-11 shrink-0 place-items-center rounded-lg border border-rose-500/35 bg-rose-500/12 text-rose-200 focus:ring-2 focus:ring-rose-200/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+              className="grid size-9 shrink-0 place-items-center rounded text-rose-200 hover:bg-rose-500/20 focus:ring-2 focus:ring-rose-200/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
               aria-label={isDeletingRoom ? t("deleting_room") : t("delete_room")}
               title={isDeletingRoom ? t("deleting_room") : t("delete_room")}
             >
               <Trash2 className="size-4" aria-hidden="true" />
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={onCopyInviteLink}
+            className="grid size-9 shrink-0 place-items-center rounded text-white hover:bg-white/10 focus:ring-2 focus:ring-white/60 focus:outline-none"
+            aria-label={t("copy_invite_link")}
+            title={t("copy_invite_link")}
+          >
+            <Share2 className="size-4" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            className="grid size-9 shrink-0 place-items-center rounded text-white hover:bg-white/10 focus:ring-2 focus:ring-white/60 focus:outline-none"
+            aria-label={t("open_menu")}
+          >
+            <Menu className="size-4" aria-hidden="true" />
+          </button>
         </div>
       </div>
 
-      <div className="mt-3 flex items-start justify-between gap-3">
+      <div className="mt-3">
         <div className="min-w-0 flex-1">{leaderboard}</div>
-        <button
-          type="button"
-          onClick={onOpenMenu}
-          className="grid size-10 shrink-0 place-items-center rounded-lg border border-white/25 bg-black/45 text-white focus:ring-2 focus:ring-white/60 focus:outline-none"
-          aria-label={t("open_menu")}
-        >
-          <Menu className="size-5" aria-hidden="true" />
-        </button>
       </div>
     </header>
   );

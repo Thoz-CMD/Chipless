@@ -55,6 +55,10 @@ function getActionButtonLabel({
     return `${t(action.type)} ${formatAmount(getAggressiveActionAmount(action, betAmount, maxAmount))}`;
   }
 
+  if (action.type === "call") {
+    return `${t(action.type)} ${formatAmount(action.amount)}`;
+  }
+
   return t(action.type);
 }
 
@@ -285,19 +289,6 @@ export function ActionPanel({
         >
           <Plus className="size-5" aria-hidden="true" />
         </button>
-      </div>
-
-      <div className="mt-3 grid grid-cols-4 gap-1.5">
-        {presets.map((preset) => (
-          <button
-            key={preset.label}
-            type="button"
-            onClick={() => setBetAmount(preset.value)}
-            className="h-9 rounded-lg border border-white/20 bg-white/5 px-1 text-[11px] text-white/65"
-          >
-            {preset.label}
-          </button>
-        ))}
       </div>
 
       <div className="mt-3 flex flex-wrap justify-center gap-1.5">
