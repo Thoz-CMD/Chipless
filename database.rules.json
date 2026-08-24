@@ -167,6 +167,15 @@
         }
       }
     },
+    "gameHistory": {
+      "$userId": {
+        ".read": "auth != null && auth.uid === $userId",
+        ".write": "auth != null && auth.uid === $userId",
+        "$historyKey": {
+          ".validate": "newData.hasChildren(['roomId', 'roomName', 'hostUid', 'createdAt', 'endedAt', 'settings', 'players', 'settlements', 'finalStats'])"
+        }
+      }
+    },
     "$other": {
       ".read": false,
       ".write": false,

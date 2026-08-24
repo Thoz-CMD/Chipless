@@ -378,6 +378,24 @@ export function GameRoomView({
     setIsDeletingRoom(true);
 
     try {
+      // Save game history before deleting room (only if there are settlements)
+      if (Object.keys(settlements).length > 0) {
+        const { saveGameHistory } = await import(
+          "@/features/game-history/services/save-game-history"
+        );
+        await saveGameHistory({
+          roomData: {
+            id: room.id,
+            name: room.name,
+            hostUid: room.hostUid,
+            settings: room.settings,
+          },
+          players,
+          settlements,
+          currentUid,
+        });
+      }
+
       await deleteRoom(room.id);
       toast.success("Room deleted.");
       router.replace("/");

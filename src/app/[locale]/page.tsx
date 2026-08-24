@@ -6,6 +6,7 @@ import {
   LockKeyhole,
   LogIn,
   UserRoundPlus,
+  History,
 } from "lucide-react";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
@@ -29,7 +30,14 @@ export default async function Home() {
       <div className="absolute inset-0 bg-black/10" />
 
       <div className="relative z-10 mx-auto flex min-h-[100svh] w-full max-w-[430px] flex-col items-center justify-center px-6 py-8">
-        <div className="absolute top-8 right-6 z-20">
+        <div className="absolute top-8 right-6 z-20 flex items-center gap-3">
+          <Link
+            href="/history"
+            className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/80 bg-black/70 shadow-[0_0_18px_rgba(255,255,255,0.08)] backdrop-blur-sm transition-colors hover:bg-black/85 focus:ring-2 focus:ring-white/70 focus:outline-none"
+            aria-label="Game History"
+          >
+            <History className="h-5 w-5" aria-hidden="true" />
+          </Link>
           <LanguageSwitcher />
         </div>
         

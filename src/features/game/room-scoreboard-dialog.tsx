@@ -188,7 +188,9 @@ export function RoomScoreboardDialog({
   players,
   settlements,
   currentUid,
+  isHost = false,
   canEditWinners = false,
+  isHistoryMode = false,
   onChangeName,
   onSelectPlayer,
 }: {
@@ -198,7 +200,9 @@ export function RoomScoreboardDialog({
   players: RoomPlayerListItem[];
   settlements: Record<string, HandSettlement>;
   currentUid: string;
+  isHost?: boolean;
   canEditWinners?: boolean;
+  isHistoryMode?: boolean;
   onChangeName?: () => void;
   onSelectPlayer?: (player: RoomPlayerListItem) => void;
 }) {
@@ -299,7 +303,7 @@ export function RoomScoreboardDialog({
                 {formatAmount(grandTotal)} {tCommon("currency")}
               </p>
             </div>
-            {onChangeName ? (
+            {onChangeName && !isHistoryMode ? (
               <Button
                 type="button"
                 variant="outline"
@@ -560,7 +564,7 @@ export function RoomScoreboardDialog({
                           <p className="text-[11px] font-semibold tracking-wider text-white/45 uppercase">
                             {t("hand_breakdown")}
                           </p>
-                          {canEditThisWinner ? (
+                          {canEditThisWinner && !isHistoryMode ? (
                             <Button
                               type="button"
                               variant="outline"

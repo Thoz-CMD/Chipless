@@ -166,5 +166,15 @@
     "only_latest_hand_edit": "Only the latest finished hand can be edited.",
     "hand_winner_updated": "Hand #{handNumber} winner updated.",
     "unable_to_edit_winner": "Unable to edit winner."
+  },
+  "history": {
+    "title": "Game History",
+    "subtitle": "View your completed game rooms",
+    "no_history": "No game history yet",
+    "no_history_description": "Your completed games will appear here",
+    "view_details": "View Details",
+    "top_player": "Top Player",
+    "played_on": "Played on",
+    "total_hands": "Total Hands"
   }
 }

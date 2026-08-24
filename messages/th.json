@@ -166,5 +166,15 @@
     "only_latest_hand_edit": "แก้ไขได้เฉพาะมือล่าสุดที่จบแล้ว",
     "hand_winner_updated": "อัปเดตผู้ชนะมือที่ #{handNumber} แล้ว",
     "unable_to_edit_winner": "ไม่สามารถแก้ไขผู้ชนะได้"
+  },
+  "history": {
+    "title": "ประวัติการเล่น",
+    "subtitle": "ดูประวัติห้องที่เล่นจบแล้ว",
+    "no_history": "ยังไม่มีประวัติการเล่น",
+    "no_history_description": "ประวัติเกมที่เล่นจบจะแสดงที่นี่",
+    "view_details": "ดูรายละเอียด",
+    "top_player": "ผู้เล่นยอดเยี่ยม",
+    "played_on": "เล่นเมื่อ",
+    "total_hands": "จำนวนมือทั้งหมด"
   }
 }
