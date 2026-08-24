@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDatabase, ref, get } from "firebase/database";
-import { getAuth } from "firebase/auth";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 import type { GameHistoryData } from "./services/save-game-history";
 import { RoomScoreboardDialog } from "@/features/game/room-scoreboard-dialog";
 import type { HandSettlement } from "@/features/rooms/services/settle-hand";
@@ -29,7 +29,7 @@ export function HistoryDetailView({ historyKey }: HistoryDetailViewProps) {
   const [isScoreboardOpen, setIsScoreboardOpen] = useState(true);
 
   useEffect(() => {
-    const auth = getAuth();
+    const auth = getFirebaseAuth();
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
@@ -100,7 +100,7 @@ export function HistoryDetailView({ historyKey }: HistoryDetailViewProps) {
   }
 
   const { history } = loadState;
-  const currentUid = getAuth().currentUser?.uid ?? "";
+  const currentUid = getFirebaseAuth().currentUser?.uid ?? "";
 
   // Convert players to RoomPlayerListItem format
   const players = Object.values(history.players).map((player) => ({

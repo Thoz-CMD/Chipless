@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { subscribeGameHistory } from "./services/subscribe-game-history";
 import { HistoryRoomCard } from "./history-room-card";
 import type { GameHistoryListItem } from "./services/subscribe-game-history";
-import { getAuth } from "firebase/auth";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 
 type LoadState =
   | { status: "loading" }
@@ -23,7 +23,7 @@ export function HistoryView() {
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
 
   useEffect(() => {
-    const auth = getAuth();
+    const auth = getFirebaseAuth();
     const currentUser = auth.currentUser;
 
     if (!currentUser) {
