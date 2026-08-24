@@ -98,11 +98,21 @@ export async function saveGameHistory({
     // Prepare player data
     const playersData = players.reduce<GameHistoryData["players"]>(
       (acc, player) => {
-        acc[player.uid] = {
+        const playerData: {
+          uid: string;
+          displayName: string;
+          photoUrl?: string;
+        } = {
           uid: player.uid,
           displayName: player.displayName ?? "Unknown",
-          photoUrl: player.photoUrl,
         };
+        
+        // Only include photoUrl if it exists
+        if (player.photoUrl) {
+          playerData.photoUrl = player.photoUrl;
+        }
+        
+        acc[player.uid] = playerData;
         return acc;
       },
       {},
