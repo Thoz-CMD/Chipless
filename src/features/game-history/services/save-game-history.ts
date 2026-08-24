@@ -137,13 +137,10 @@ export async function saveGameHistory({
       },
     };
 
-    // Save to each player's history
-    const savePromises = players.map((player) => {
-      const historyRef = ref(db, `gameHistory/${player.uid}/${historyKey}`);
-      return set(historyRef, historyData);
-    });
-
-    await Promise.all(savePromises);
+    // Save to current user's history only
+    // (each user will save their own history when they delete/leave the room)
+    const historyRef = ref(db, `gameHistory/${currentUid}/${historyKey}`);
+    await set(historyRef, historyData);
   } catch (error) {
     console.error("Failed to save game history:", error);
     throw new SaveGameHistoryError(
