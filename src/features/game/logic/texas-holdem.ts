@@ -174,7 +174,7 @@ function normalizePosition(position: number, playerCount: number): number {
   return ((position % playerCount) + playerCount) % playerCount;
 }
 
-function nextActivePosition(
+export function nextActivePosition(
   state: HoldemGameState,
   fromPosition: number,
 ): number | undefined {
@@ -265,10 +265,18 @@ function moveToNextBettingRound(state: HoldemGameState): HoldemGameState {
 }
 
 function maybeAdvanceAfterAction(state: HoldemGameState): HoldemGameState {
-  if (activePlayers(state).length <= 1) {
-    return { ...state, bettingRound: "showdown", currentTurn: -1 };
+  // If only 1 active player remains, end the game immediately by going to showdown
+  const activePlayerCount = activePlayers(state).length;
+  if (activePlayerCount <= 1) {
+    return {
+      ...state,
+      bettingRound: "showdown",
+      currentBet: 0,
+      currentTurn: -1,
+      players: resetRoundContributions(state.players),
+    };
   }
-
+  
   if (allActivePlayersMatchedBet(state)) {
     return moveToNextBettingRound(state);
   }
@@ -473,6 +481,7 @@ export function getAvailableActions(
   if (amountToCall === 0) {
     if (state.currentBet > 0) {
       return [
+        { type: "fold", label: "Fold" },
         { type: "check", label: "Check" },
         {
           type: "raise",
@@ -483,6 +492,7 @@ export function getAvailableActions(
     }
 
     return [
+      { type: "fold", label: "Fold" },
       { type: "check", label: "Check" },
       { type: "bet", label: "Bet", minimumAmount: getMinimumBetAmount() },
     ];

@@ -77,6 +77,74 @@ async function deleteIfRoomEmpty({
   ]);
 }
 
+async function preservePlayerHistory({
+  databaseUrl,
+  roomId,
+  uid,
+  idToken,
+}: {
+  databaseUrl: string;
+  roomId: string;
+  uid: string;
+  idToken: string;
+}): Promise<void> {
+  const playerUrl = buildDatabaseUrl(
+    databaseUrl,
+    `roomPlayers/${roomId}/${uid}`,
+    idToken,
+  );
+  const playerResponse = await fetch(playerUrl, { cache: "no-store" });
+
+  if (!playerResponse.ok) {
+    return;
+  }
+
+  const playerData: unknown = await playerResponse.json();
+
+  if (!playerData || typeof playerData !== 'object') {
+    return;
+  }
+
+  const player = playerData as Record<string, unknown>;
+  const seatIndex = player.seatIndex;
+  const displayName = player.displayName;
+  const photoUrl = player.photoUrl;
+  const joinedAt = player.joinedAt;
+
+  // Build history object with only defined values
+  const historyData: Record<string, unknown> = {
+    lastSeen: Date.now(),
+  };
+  
+  if (typeof seatIndex === 'number') {
+    historyData.seatIndex = seatIndex;
+  }
+  if (typeof displayName === 'string') {
+    historyData.displayName = displayName;
+  }
+  if (typeof photoUrl === 'string') {
+    historyData.photoUrl = photoUrl;
+  }
+  if (joinedAt !== undefined) {
+    historyData.joinedAt = joinedAt;
+  }
+
+  // Only update if we have at least one field to update
+  if (Object.keys(historyData).length > 1) { // more than just lastSeen
+    const historyUrl = buildDatabaseUrl(
+      databaseUrl,
+      `roomPlayerHistory/${roomId}/${uid}`,
+      idToken,
+    );
+
+    await fetch(historyUrl, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(historyData),
+    });
+  }
+}
+
 export async function POST(request: Request) {
   const databaseUrl = getDatabaseUrl();
 
@@ -98,6 +166,15 @@ export async function POST(request: Request) {
 
   const roomId = encodeURIComponent(payload.roomId);
   const uid = encodeURIComponent(payload.uid);
+
+  // Preserve player history before deleting
+  await preservePlayerHistory({
+    databaseUrl,
+    roomId: payload.roomId,
+    uid: payload.uid,
+    idToken: payload.idToken,
+  });
+
   const playerUrl = buildDatabaseUrl(
     databaseUrl,
     `roomPlayers/${roomId}/${uid}`,

@@ -41,51 +41,51 @@
           },
           "hand": {
             ".write": "auth != null && root.child('roomPlayers').child($roomId).child(auth.uid).exists()",
-            ".validate": "newData.hasChildren(['dealerPosition', 'smallBlindPosition', 'bigBlindPosition', 'currentTurn', 'bettingRound', 'pot', 'currentBet', 'minimumRaise', 'smallBlind', 'bigBlind', 'players'])",
+            ".validate": "!newData.exists() || newData.hasChildren(['dealerPosition', 'smallBlindPosition', 'bigBlindPosition', 'currentTurn', 'bettingRound', 'pot', 'currentBet', 'minimumRaise', 'smallBlind', 'bigBlind', 'players'])",
             "dealerPosition": {
-              ".validate": "newData.isNumber() && newData.val() >= 0"
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
             },
             "smallBlindPosition": {
-              ".validate": "newData.isNumber() && newData.val() >= 0"
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
             },
             "bigBlindPosition": {
-              ".validate": "newData.isNumber() && newData.val() >= 0"
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
             },
             "currentTurn": {
-              ".validate": "newData.isNumber() && newData.val() >= -1"
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= -1)"
             },
             "bettingRound": {
-              ".validate": "newData.val() === 'preflop' || newData.val() === 'flop' || newData.val() === 'turn' || newData.val() === 'river' || newData.val() === 'showdown'"
+              ".validate": "!newData.exists() || (newData.val() === 'preflop' || newData.val() === 'flop' || newData.val() === 'turn' || newData.val() === 'river' || newData.val() === 'showdown')"
             },
             "pot": {
-              ".validate": "newData.isNumber() && newData.val() >= 0"
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
             },
             "currentBet": {
-              ".validate": "newData.isNumber() && newData.val() >= 0"
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
             },
             "minimumRaise": {
-              ".validate": "newData.isNumber() && newData.val() >= 0"
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
             },
             "smallBlind": {
-              ".validate": "newData.isNumber() && newData.val() > 0"
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() > 0)"
             },
             "bigBlind": {
-              ".validate": "newData.isNumber() && newData.val() > 0"
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() > 0)"
             },
             "players": {
-              ".validate": "newData.exists()"
+              ".validate": "!newData.exists() || newData.exists()"
             },
             "communityCards": {
-              ".validate": "newData.exists()"
+              ".validate": "!newData.exists() || newData.exists()"
             },
             "playerCards": {
-              ".validate": "newData.exists()"
+              ".validate": "!newData.exists() || newData.exists()"
             },
             "actionLog": {
-              ".validate": "newData.exists()"
+              ".validate": "!newData.exists() || newData.exists()"
             },
             "lastAggressorPosition": {
-              ".validate": "newData.isNumber() && newData.val() >= 0"
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
             },
             "$other": {
               ".validate": false
@@ -115,33 +115,61 @@
       "$roomId": {
         ".read": "auth != null",
         "$uid": {
-          ".write": "auth != null && (($uid === auth.uid && (!newData.exists() || newData.child('uid').val() === auth.uid)) || (!newData.exists() && data.child('online').val() === false && root.child('roomPlayers').child($roomId).child(auth.uid).exists()) || (!newData.exists() && root.child('rooms').child($roomId).child('hostUid').val() === auth.uid && $uid !== auth.uid))",
-          ".validate": "newData.hasChildren(['uid', 'role', 'joinedAt', 'online'])",
+          ".write": "auth != null && ($uid === auth.uid || (!newData.exists() && root.child('rooms').child($roomId).child('hostUid').val() === auth.uid))",
+          ".validate": "!newData.exists() || newData.hasChildren(['uid', 'role', 'joinedAt', 'online'])",
           "uid": {
-            ".validate": "newData.isString() && newData.val() === $uid"
+            ".validate": "!newData.exists() || (newData.isString() && newData.val() === $uid)"
+          },
+          "displayName": {
+            ".write": "auth != null && $uid === auth.uid",
+            ".validate": "!newData.exists() || (newData.isString() && newData.val().length >= 2 && newData.val().length <= 20)"
+          },
+          "role": {
+            ".write": "auth != null && ((!data.exists() && $uid === auth.uid) || (data.exists() && (newData.val() === data.val() || root.child('rooms').child($roomId).child('hostUid').val() === auth.uid)))",
+            ".validate": "!newData.exists() || (newData.val() === 'host' || newData.val() === 'player')"
+          },
+          "joinedAt": {
+            ".validate": "!newData.exists() || newData.exists()"
+          },
+          "lastSeen": {
+            ".validate": "!newData.exists() || newData.exists()"
+          },
+          "seatIndex": {
+            ".write": "auth != null && $uid === auth.uid",
+            ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() <= 99)"
+          },
+          "online": {
+            ".validate": "!newData.exists() || newData.isBoolean()"
+          },
+          "photoUrl": {
+            ".write": "auth != null && $uid === auth.uid",
+            ".validate": "!newData.exists() || newData.isString()"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
+    },
+    "roomPlayerHistory": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$uid": {
+          ".write": "auth != null && $uid === auth.uid",
+          "seatIndex": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99"
           },
           "displayName": {
             ".validate": "newData.isString() && newData.val().length >= 2 && newData.val().length <= 20"
           },
-          "role": {
-            ".write": "auth != null && ((!data.exists() && $uid === auth.uid) || (data.exists() && (newData.val() === data.val() || root.child('rooms').child($roomId).child('hostUid').val() === auth.uid)))",
-            ".validate": "newData.val() === 'host' || newData.val() === 'player'"
-          },
-          "joinedAt": {
-            ".validate": "newData.exists()"
-          },
-          "lastSeen": {
-            ".validate": "newData.exists()"
-          },
-          "seatIndex": {
-            ".write": "auth != null && root.child('rooms').child($roomId).child('hostUid').val() === auth.uid",
-            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 99"
-          },
-          "online": {
-            ".validate": "newData.isBoolean()"
-          },
           "photoUrl": {
             ".validate": "newData.isString()"
+          },
+          "joinedAt": {
+            ".validate": "newData.exists() || !newData.exists()"
+          },
+          "lastSeen": {
+            ".validate": "newData.exists() || !newData.exists()"
           },
           "$other": {
             ".validate": false

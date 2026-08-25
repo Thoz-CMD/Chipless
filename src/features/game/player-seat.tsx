@@ -94,7 +94,7 @@ export function PlayerSeat({
       case "หมอบ":
         return "bg-gradient-to-b from-red-500 to-red-700 text-white shadow-[0_3px_0_0_rgba(100,0,0,0.8)]";
       case "Check":
-      case "เช็ค":
+      case "ผ่าน":
         return "bg-gradient-to-b from-cyan-400 to-cyan-600 text-black shadow-[0_3px_0_0_rgba(0,100,120,0.8)]";
       case "Call":
       case "ตาม":
@@ -102,7 +102,7 @@ export function PlayerSeat({
       case "Bet":
       case "เดิมพัน":
       case "Raise":
-      case "เรซ":
+      case "เรส":
         return "bg-gradient-to-b from-yellow-400 to-yellow-600 text-black shadow-[0_3px_0_0_rgba(100,80,0,0.8)]";
       default:
         return "bg-gradient-to-b from-gray-400 to-gray-600 text-black shadow-[0_3px_0_0_rgba(40,40,40,0.8)]";

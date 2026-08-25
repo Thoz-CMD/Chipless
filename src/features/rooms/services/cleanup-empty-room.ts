@@ -15,6 +15,15 @@ export async function cleanupEmptyRoom(roomId: string): Promise<void> {
 
   await wait(emptyRoomCleanupDelayMs);
 
+  const roomSnapshot = await get(ref(database, `rooms/${roomId}`));
+  const roomValue = roomSnapshot.val();
+
+  if (!roomValue || typeof roomValue !== "object") {
+    return;
+  }
+
+  const room = roomValue as Record<string, unknown>;
+
   const playersSnapshot = await get(ref(database, `roomPlayers/${roomId}`));
 
   if (playersSnapshot.exists()) {

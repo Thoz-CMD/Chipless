@@ -261,6 +261,15 @@ export function GameTable({
       );
     }
   }
+  
+  // Force show "Fold" for folded players even if action is not in current round
+  if (foldedUids) {
+    foldedUids.forEach((uid) => {
+      if (!lastActionByUid.has(uid)) {
+        lastActionByUid.set(uid, tActions("fold"));
+      }
+    });
+  }
 
   async function swapSeats(targetUid: string) {
     if (!draggingUid || draggingUid === targetUid) {
@@ -305,8 +314,8 @@ export function GameTable({
 
   return (
     <section className="relative mx-auto h-full w-full">
-      <div className="absolute top-1/2 left-1/2 h-[82%] w-[66%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),rgba(0,0,0,0.92)_62%)] shadow-[inset_0_0_42px_rgba(255,255,255,0.08),0_0_28px_rgba(255,255,255,0.08)]" />
-      <div className="absolute top-1/2 left-1/2 h-[72%] w-[52%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-black/35" />
+      <div className="absolute top-1/2 left-1/2 h-[70%] w-[56%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),rgba(0,0,0,0.92)_62%)] shadow-[inset_0_0_42px_rgba(255,255,255,0.08),0_0_28px_rgba(255,255,255,0.08)]" />
+      <div className="absolute top-1/2 left-1/2 h-[60%] w-[44%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-black/35" />
 
       {/* Center table display - Logo and Community Cards */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3">
@@ -364,7 +373,9 @@ export function GameTable({
           hasFolded={foldedUids?.has(player.uid)}
           isWaitingForNextHand={
             activeHandPlayerUids !== undefined &&
-            !activeHandPlayerUids.has(player.uid)
+            !activeHandPlayerUids.has(player.uid) &&
+            // Only show waiting if hand has actually started (has actions)
+            actionLog && actionLog.length > 0
           }
           winStreak={winStreaksByUid?.[player.uid]}
           isExtinguishing={extinguishAnimation?.extinguishedUids.includes(

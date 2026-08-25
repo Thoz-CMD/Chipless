@@ -4,6 +4,7 @@ import { useRouter } from "@/i18n/routing";
 import { toast } from "sonner";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
+import { useTranslations } from "next-intl";
 
 import { ActionPanel } from "@/features/game/action-panel";
 import { ChangeNameDialog } from "@/features/game/change-name-dialog";
@@ -106,11 +107,15 @@ export function GameRoomView({
   currentUid: string;
 }) {
   const router = useRouter();
+  const t = useTranslations("game");
+  const tCommon = useTranslations("common");
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [isDeletingRoom, setIsDeletingRoom] = useState(false);
   const [isDeleteRoomDialogOpen, setIsDeleteRoomDialogOpen] = useState(false);
   const [isLeavingRoom, setIsLeavingRoom] = useState(false);
   const [isLeaveRoomDialogOpen, setIsLeaveRoomDialogOpen] = useState(false);
+  const [isHostTransferDialogOpen, setIsHostTransferDialogOpen] = useState(false);
+  const [selectedNewHostUid, setSelectedNewHostUid] = useState<string | null>(null);
   const [isScoreboardOpen, setIsScoreboardOpen] = useState(false);
   const [isChangeNameOpen, setIsChangeNameOpen] = useState(false);
   const [isKicking, setIsKicking] = useState(false);
@@ -409,6 +414,26 @@ export function GameRoomView({
     }
   }
 
+  function handleOpenLeaveRoomDialog() {
+    if (isLeavingRoom) {
+      return;
+    }
+
+    // If host, require selecting new host first
+    if (isHost) {
+      const otherPlayers = players.filter(p => p.uid !== currentUid);
+      if (otherPlayers.length > 0) {
+        setIsHostTransferDialogOpen(true);
+        setIsLeaveRoomDialogOpen(false);
+      } else {
+        // No other players, can leave normally
+        setIsLeaveRoomDialogOpen(true);
+      }
+    } else {
+      setIsLeaveRoomDialogOpen(true);
+    }
+  }
+
   async function handleLeaveRoom() {
     if (isLeavingRoom) {
       return;
@@ -416,6 +441,7 @@ export function GameRoomView({
 
     setIsLeavingRoom(true);
     setIsLeaveRoomDialogOpen(false);
+    setIsHostTransferDialogOpen(false);
 
     try {
       await removeStaleRoomPlayer({ roomId: room.id, uid: currentUid });
@@ -427,6 +453,33 @@ export function GameRoomView({
       toast.error(message);
     } finally {
       setIsLeavingRoom(false);
+    }
+  }
+
+  async function handleTransferHostAndLeave() {
+    if (!selectedNewHostUid || isTransferringHost || isLeavingRoom) {
+      return;
+    }
+
+    setIsTransferringHost(true);
+
+    try {
+      await transferRoomHost({
+        roomId: room.id,
+        targetUid: selectedNewHostUid,
+      });
+      toast.success("Host transferred successfully.");
+      
+      // After successful transfer, proceed to leave room directly
+      setIsTransferringHost(false);
+      setIsHostTransferDialogOpen(false);
+      // Call handleLeaveRoom directly without showing dialog
+      await handleLeaveRoom();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to transfer host.";
+      toast.error(message);
+      setIsTransferringHost(false);
     }
   }
 
@@ -462,7 +515,7 @@ export function GameRoomView({
           onCopyInviteLink={copyInviteLink}
           onDeleteRoom={isHost ? handleOpenDeleteRoomDialog : undefined}
           isDeletingRoom={isDeletingRoom}
-          onLeaveRoom={() => setIsLeaveRoomDialogOpen(true)}
+          onLeaveRoom={handleOpenLeaveRoomDialog}
           isLeavingRoom={isLeavingRoom}
           onOpenMenu={() => setIsScoreboardOpen(true)}
           leaderboard={
@@ -635,6 +688,86 @@ export function GameRoomView({
               className="bg-rose-500 text-white hover:bg-rose-400"
             >
               {isDeletingRoom ? "Deleting..." : "Delete room"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Host Transfer Dialog */}
+      <Dialog
+        open={isHostTransferDialogOpen}
+        onOpenChange={setIsHostTransferDialogOpen}
+      >
+        <DialogContent className="border-white/30 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.12)] sm:max-w-md">
+          <DialogHeader className="text-left">
+            <DialogTitle>{t("transfer_host_before_leaving")}</DialogTitle>
+            <DialogDescription className="text-white/65">
+              {t("transfer_host_description")}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-4 space-y-2">
+            {players
+              .filter(player => player.uid !== currentUid)
+              .map(player => (
+                <button
+                  key={player.uid}
+                  type="button"
+                  onClick={() => setSelectedNewHostUid(player.uid)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                    selectedNewHostUid === player.uid
+                      ? 'border-yellow-500/60 bg-yellow-500/20'
+                      : 'border-white/20 bg-white/5 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="relative size-10 rounded-full overflow-hidden border-2 border-white/20">
+                    {player.photoUrl ? (
+                      <img
+                        src={player.photoUrl}
+                        alt={player.displayName}
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex size-full items-center justify-center bg-white/10 text-white">
+                        {player.displayName?.[0] || '?'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="font-medium text-white">{player.displayName}</p>
+                  </div>
+                  {selectedNewHostUid === player.uid && (
+                    <div className="text-yellow-500">
+                      <svg className="size-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+              ))}
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsHostTransferDialogOpen(false);
+                setSelectedNewHostUid(null);
+              }}
+              className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            >
+              {tCommon("cancel")}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                void handleTransferHostAndLeave();
+              }}
+              disabled={!selectedNewHostUid || isTransferringHost}
+              className="bg-white text-black hover:bg-neutral-100"
+            >
+              {isTransferringHost ? t("transferring") : t("transfer_and_leave")}
             </Button>
           </DialogFooter>
         </DialogContent>

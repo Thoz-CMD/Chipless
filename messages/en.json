@@ -52,6 +52,10 @@
     "leave_room": "Leave room",
     "leaving_room": "Leaving room",
     "open_menu": "Open room menu",
+    "transfer_host_before_leaving": "Transfer Host Before Leaving",
+    "transfer_host_description": "You must select a new host before leaving the room.",
+    "transfer_and_leave": "Transfer & Leave",
+    "transferring": "Transferring...",
     "your_bet": "Your Bet",
     "min": "Min",
     "increase_bet": "Increase bet",
@@ -79,7 +83,15 @@
     "all_in": "All-In",
     "big_blind": "Big Blind",
     "small_blind": "Small Blind",
-    "post_blind": "Post Blind"
+    "post_blind": "Post Blind",
+    "check_fold": "Check/Fold",
+    "call_any": "Call Any",
+    "check_fold_cancel": "Cancelled Check/Fold",
+    "check_fold_active": "Will Check/Fold when it's your turn",
+    "check_cancel": "Cancelled Check",
+    "check_active": "Will Check when it's your turn",
+    "call_any_cancel": "Cancelled Call Any",
+    "call_any_active": "Will Call Any when it's your turn"
   },
   "profile": {
     "edit_profile": "Edit Profile",

@@ -142,19 +142,53 @@ export async function joinRoom(values: JoinRoomInput): Promise<JoinedRoom> {
     const existingPlayer = playerSnapshot.exists()
       ? buildExistingPlayerUpdate(uid, playerSnapshot.val())
       : null;
+    
+    // Check if player has previous seat information
+    const historySnapshot = await get(ref(database, `roomPlayerHistory/${values.roomId}/${uid}`));
+    const playerHistory = historySnapshot.exists() ? historySnapshot.val() : null;
+    
+    // Get current players to check if seat is available
+    const allPlayersSnapshot = await get(ref(database, `roomPlayers/${values.roomId}`));
+    const allPlayers = allPlayersSnapshot.exists() ? allPlayersSnapshot.val() : {};
+    const currentSeatIndices = Object.values(allPlayers)
+      .filter((p: any) => p && typeof p === 'object' && typeof p.seatIndex === 'number')
+      .map((p: any) => p.seatIndex);
+    
     const updates =
       existingPlayer !== null
         ? {
             [playerPath]: existingPlayer,
           }
-        : {
-            [playerPath]: {
+        : (() => {
+            const newPlayerData: Record<string, unknown> = {
               uid,
               role: "player",
-              joinedAt: serverTimestamp(),
+              joinedAt: playerHistory?.joinedAt || serverTimestamp(),
               online: true,
-            },
-          };
+            };
+            
+            // Only restore seat if it's not taken by someone else
+            if (playerHistory?.seatIndex !== undefined && 
+                typeof playerHistory.seatIndex === 'number' && 
+                !currentSeatIndices.includes(playerHistory.seatIndex)) {
+              newPlayerData.seatIndex = playerHistory.seatIndex;
+            }
+            
+            // Only restore displayName if it exists and is valid
+            if (playerHistory?.displayName !== undefined && 
+                typeof playerHistory.displayName === 'string' && 
+                playerHistory.displayName.length >= 2) {
+              newPlayerData.displayName = playerHistory.displayName;
+            }
+            
+            // Only restore photoUrl if it exists and is valid
+            if (playerHistory?.photoUrl !== undefined && 
+                typeof playerHistory.photoUrl === 'string') {
+              newPlayerData.photoUrl = playerHistory.photoUrl;
+            }
+            
+            return { [playerPath]: newPlayerData };
+          })();
 
     await update(ref(database), updates);
 
