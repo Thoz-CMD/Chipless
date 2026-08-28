@@ -31,5 +31,6 @@ export async function cleanupEmptyRoom(roomId: string): Promise<void> {
   }
 
   await remove(ref(database, `roomSecrets/${roomId}`));
+  await remove(ref(database, `roomPlayerHistory/${roomId}`));
   await remove(ref(database, `rooms/${roomId}`));
 }

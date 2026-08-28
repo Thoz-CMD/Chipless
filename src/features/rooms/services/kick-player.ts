@@ -77,7 +77,7 @@ export async function kickPlayer({
       });
     }
 
-    await repairRoomAfterPlayerLeaves({ roomId, leavingUid: targetUid, isKicked: true });
+    await repairRoomAfterPlayerLeaves({ roomId, leavingUid: targetUid });
     await remove(ref(database, `roomPlayers/${roomId}/${targetUid}`));
     void cleanupEmptyRoom(roomId);
   } catch (error) {

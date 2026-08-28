@@ -26,6 +26,10 @@ import {
   StartGameError,
 } from "@/features/rooms/services/start-game";
 import {
+  startNextHand,
+  StartNextHandError,
+} from "@/features/rooms/services/start-next-hand";
+import {
   deleteRoom,
   DeleteRoomError,
 } from "@/features/rooms/services/delete-room";
@@ -33,7 +37,10 @@ import {
   kickPlayer,
   KickPlayerError,
 } from "@/features/rooms/services/kick-player";
+import { foldAndLeaveHand } from "@/features/rooms/services/fold-and-leave-hand";
 import { removeStaleRoomPlayer } from "@/features/rooms/services/remove-stale-room-player";
+import { getFirebaseAuth, getRealtimeDatabase } from "@/lib/firebase/client";
+import { onDisconnect, ref } from "firebase/database";
 import {
   transferRoomHost,
   TransferRoomHostError,
@@ -110,6 +117,7 @@ export function GameRoomView({
   const t = useTranslations("game");
   const tCommon = useTranslations("common");
   const [isStartingGame, setIsStartingGame] = useState(false);
+  const [isStartingNextHand, setIsStartingNextHand] = useState(false);
   const [isDeletingRoom, setIsDeletingRoom] = useState(false);
   const [isDeleteRoomDialogOpen, setIsDeleteRoomDialogOpen] = useState(false);
   const [isLeavingRoom, setIsLeavingRoom] = useState(false);
@@ -168,6 +176,66 @@ export function GameRoomView({
   const activeHandPlayerUids = holdemGameState
     ? new Set(holdemGameState.players.map((player) => player.uid))
     : undefined;
+  const isInActiveHand =
+    isGameStarted &&
+    holdemGameState !== null &&
+    holdemGameState.bettingRound !== "summary" &&
+    holdemGameState.players.some(
+      (player) => player.uid === currentUid && !player.hasFolded,
+    );
+
+  const isCurrentPlayerPendingLeave =
+    currentPlayerData?.pendingLeave ?? false;
+
+  useEffect(() => {
+    if (!isCurrentPlayerPendingLeave) {
+      return;
+    }
+
+    if (
+      holdemGameState === null ||
+      holdemGameState.bettingRound === "summary" ||
+      room.status === "waiting"
+    ) {
+      // Cancel the onDisconnect handler FIRST, before deleting the node.
+      // If we delete the node first, Firebase server may still try to execute the
+      // onDisconnect update on the deleted node → PERMISSION_DENIED.
+      const playerRef = ref(
+        getRealtimeDatabase(),
+        `roomPlayers/${room.id}/${currentUid}`,
+      );
+
+      void onDisconnect(playerRef)
+        .cancel()
+        .catch(() => {
+          // Ignore cancel errors
+        })
+        .finally(() => {
+          // Now safe to delete the node via API
+          void getFirebaseAuth()
+            .currentUser?.getIdToken()
+            .then((idToken) =>
+              fetch("/api/leave-room", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ roomId: room.id, uid: currentUid, idToken }),
+              }),
+            )
+            .finally(() => {
+              toast.success(t("left_after_hand"));
+              router.replace("/");
+            });
+        });
+    }
+  }, [
+    isCurrentPlayerPendingLeave,
+    holdemGameState,
+    room.status,
+    room.id,
+    currentUid,
+    router,
+    t,
+  ]);
 
   useGameSoundEffects({
     roomId: room.id,
@@ -314,6 +382,26 @@ export function GameRoomView({
     }
   }
 
+  async function handleStartNextHand() {
+    if (!isHost || isStartingNextHand) {
+      return;
+    }
+
+    setIsStartingNextHand(true);
+
+    try {
+      await startNextHand(room.id);
+    } catch (error) {
+      const message =
+        error instanceof StartNextHandError || error instanceof Error
+          ? error.message
+          : "Unable to start next hand.";
+      toast.error(message);
+    } finally {
+      setIsStartingNextHand(false);
+    }
+  }
+
   async function handleKickPlayer() {
     if (!selectedPlayerForSummary || isKicking) {
       return;
@@ -444,9 +532,14 @@ export function GameRoomView({
     setIsHostTransferDialogOpen(false);
 
     try {
-      await removeStaleRoomPlayer({ roomId: room.id, uid: currentUid });
-      toast.success("Left the room.");
-      router.replace("/");
+      if (isInActiveHand) {
+        await foldAndLeaveHand({ roomId: room.id });
+        toast.info(t("leave_after_hand_notice"));
+      } else {
+        await removeStaleRoomPlayer({ roomId: room.id, uid: currentUid });
+        toast.success(t("left_room"));
+        router.replace("/");
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unable to leave room.";
@@ -577,15 +670,57 @@ export function GameRoomView({
       <div className="shrink-0 border-t border-white/10 bg-black/50 p-0 backdrop-blur-sm">
         {isGameStarted ? (
           holdemGameState ? (
-            <ActionPanel
-              key={`${room.id}-${room.gameState?.handNumber ?? 1}-${players.map((player) => player.uid).join("-")}`}
-              roomId={room.id}
-              initialGameState={holdemGameState}
-              currentUid={currentUid}
-            />
+            holdemGameState.bettingRound === "summary" ? (
+              <section className="rounded-2xl border border-white/30 bg-black/85 p-4 text-center shadow-[0_0_24px_rgba(255,255,255,0.1)] space-y-3">
+                {latestSettlement ? (
+                  <div className="rounded-xl border border-emerald-400/30 bg-emerald-950/40 p-2.5 text-center">
+                    <p className="text-sm font-semibold text-emerald-300">
+                      {t("hand_summary_winner", {
+                        winnerName: latestSettlement.winnerName,
+                        amount: latestSettlement.pot.toLocaleString("en-US"),
+                        currency: tCommon("currency"),
+                      })}
+                    </p>
+                  </div>
+                ) : null}
+
+                {isHost ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void handleStartNextHand();
+                    }}
+                    disabled={isStartingNextHand}
+                    className="h-12 w-full rounded-xl border border-white bg-white text-base font-bold text-black transition-all hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60 shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+                  >
+                    {isStartingNextHand
+                      ? t("starting_next_hand")
+                      : t("start_next_hand")}
+                  </button>
+                ) : (
+                  <div className="flex items-center justify-center gap-2 py-1 text-sm text-white/75">
+                    <span className="inline-block animate-pulse text-base">🃏</span>
+                    <span>{t("waiting_for_next_hand")}</span>
+                  </div>
+                )}
+              </section>
+            ) : isCurrentPlayerPendingLeave ? (
+              <section className="rounded-2xl border border-rose-500/30 bg-black/85 p-4 text-center shadow-[0_0_24px_rgba(244,63,94,0.1)] space-y-1.5">
+                <p className="text-sm font-semibold text-rose-300">
+                  {t("leave_after_hand_notice")}
+                </p>
+              </section>
+            ) : (
+              <ActionPanel
+                key={`${room.id}-${room.gameState?.handNumber ?? 1}-${players.map((player) => player.uid).join("-")}`}
+                roomId={room.id}
+                initialGameState={holdemGameState}
+                currentUid={currentUid}
+              />
+            )
           ) : (
             <section className="rounded-2xl border border-white/30 bg-black/70 p-4 text-center text-sm text-white/65 shadow-[0_0_24px_rgba(255,255,255,0.08)]">
-              Waiting for more players.
+              {t("waiting")}
             </section>
           )
         ) : (
@@ -777,22 +912,30 @@ export function GameRoomView({
         open={isLeaveRoomDialogOpen}
         onOpenChange={setIsLeaveRoomDialogOpen}
       >
-        <DialogContent className="border-white/30 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.12)] sm:max-w-sm">
+        <DialogContent
+          className={`bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.12)] sm:max-w-sm ${
+            isInActiveHand ? "border-rose-500/40" : "border-white/30"
+          }`}
+        >
           <DialogHeader className="text-left">
-            <DialogTitle>Leave room?</DialogTitle>
-            <DialogDescription className="text-white/65">
-              You will be removed from this room immediately.
+            <DialogTitle className={isInActiveHand ? "text-rose-400 font-bold" : ""}>
+              {isInActiveHand ? t("leave_in_hand_title") : t("leave_room")}
+            </DialogTitle>
+            <DialogDescription className="text-white/70">
+              {isInActiveHand
+                ? t("leave_in_hand_warning")
+                : t("leave_room_description")}
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
               onClick={() => setIsLeaveRoomDialogOpen(false)}
               className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
             >
-              Cancel
+              {isInActiveHand ? t("stay_in_game") : tCommon("cancel")}
             </Button>
             <Button
               type="button"
@@ -800,9 +943,17 @@ export function GameRoomView({
                 void handleLeaveRoom();
               }}
               disabled={isLeavingRoom}
-              className="bg-white text-black hover:bg-neutral-100"
+              className={
+                isInActiveHand
+                  ? "bg-rose-600 text-white hover:bg-rose-500"
+                  : "bg-white text-black hover:bg-neutral-100"
+              }
             >
-              {isLeavingRoom ? "Leaving..." : "Leave room"}
+              {isLeavingRoom
+                ? t("leaving_room")
+                : isInActiveHand
+                  ? t("confirm_leave")
+                  : t("leave_room")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -5,12 +5,15 @@ import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { getDatabase, ref, get } from "firebase/database";
+import { getDatabase, ref, get, remove } from "firebase/database";
 import { getFirebaseAuth } from "@/lib/firebase/client";
 import { signInWithAnonymousAccount } from "@/features/auth/anonymous-auth";
 import type { GameHistoryData } from "./services/save-game-history";
 import { RoomScoreboardDialog } from "@/features/game/room-scoreboard-dialog";
 import type { HandSettlement } from "@/features/rooms/services/settle-hand";
+
+const GAME_HISTORY_RETENTION_DAYS = 7;
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 type LoadState =
   | { status: "loading" }
@@ -62,6 +65,19 @@ export function HistoryDetailView({ historyKey }: HistoryDetailViewProps) {
         }
 
         const history = snapshot.val() as GameHistoryData;
+        
+        // Check if history is older than 7 days and delete it
+        const now = Date.now();
+        const cutoffTime = now - (GAME_HISTORY_RETENTION_DAYS * MS_PER_DAY);
+        if (history.endedAt < cutoffTime) {
+          await remove(historyRef);
+          setLoadState({
+            status: "error",
+            message: "History has expired.",
+          });
+          return;
+        }
+        
         setLoadState({ status: "ready", history });
       } catch (error) {
         setLoadState({

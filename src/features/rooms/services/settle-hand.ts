@@ -347,57 +347,22 @@ export async function settleHand({
       });
     }
 
-    const players = snapshotToPlayers(playersSnapshot.val());
-
-    if (players.length < 2) {
-      throw new SettleHandError(
-        "At least 2 players are required for next hand.",
-        {
-          code: "not-enough-players",
-        },
-      );
-    }
-
     const handNumber = roomValue.gameState?.handNumber ?? 1;
     const selectedWinnerUids = winnerUids ?? (winnerUid ? [winnerUid] : []);
     const settlement = createSettlement(hand, handNumber, selectedWinnerUids);
-    const currentBigBlindUid =
-      roomValue.gameState?.currentBigBlindUid ?? roomValue.hostUid;
-    const currentIndex = players.findIndex(
-      (player) => player.uid === currentBigBlindUid,
-    );
-    const nextIndex =
-      currentIndex < 0 ? 0 : (currentIndex + 1) % players.length;
-    const nextBigBlindUid = players[nextIndex]?.uid;
 
-    if (!nextBigBlindUid) {
-      throw new SettleHandError("Unable to find the next big blind.", {
-        code: "next-big-blind-not-found",
-      });
-    }
-
-    const dealerPosition =
-      players.length === 2
-        ? (nextIndex + 1) % players.length
-        : (nextIndex - 2 + players.length) % players.length;
-    const nextHand = createHoldemGameState({
-      players: players.map((player, seatIndex) => ({
-        uid: player.uid,
-        displayName: player.displayName ?? "Unnamed",
-        seatIndex,
-      })),
-      dealerPosition,
-      bigBlind: roomValue.settings.bigBlind,
-    });
+    const summaryHand: HoldemGameState = {
+      ...hand,
+      bettingRound: "summary",
+      currentTurn: -1,
+    };
 
     await update(ref(database), {
       [`rooms/${roomId}/gameState/settlements/${handNumber}`]: {
         ...settlement,
         createdAt: serverTimestamp(),
       },
-      [`rooms/${roomId}/gameState/currentBigBlindUid`]: nextBigBlindUid,
-      [`rooms/${roomId}/gameState/handNumber`]: handNumber + 1,
-      [`rooms/${roomId}/gameState/hand`]: nextHand,
+      [`rooms/${roomId}/gameState/hand`]: summaryHand,
       [`rooms/${roomId}/updatedAt`]: serverTimestamp(),
     });
   } catch (error) {

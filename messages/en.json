@@ -72,7 +72,19 @@
     "reveal_flop": "Reveal Flop cards",
     "reveal_turn": "Reveal Turn card",
     "reveal_river": "Reveal River card",
-    "reveal_showdown": "Reveal showdown cards"
+    "reveal_showdown": "Reveal showdown cards",
+    "start_next_hand": "Start Next Hand",
+    "starting_next_hand": "Starting next hand...",
+    "waiting_for_next_hand": "🃏 Waiting for the host to deal the next hand...",
+    "hand_summary_winner": "🏆 {winnerName} won this hand! (+{amount} {currency})",
+    "leave_in_hand_title": "Leave Room?",
+    "leave_in_hand_warning": "You are currently playing in this hand. Leaving now will fold your hand and any chips you've contributed will remain in the pot. Are you sure you want to leave?",
+    "leave_room_description": "You will be removed from this room immediately.",
+    "confirm_leave": "Confirm & Fold",
+    "stay_in_game": "Stay in Game",
+    "leave_after_hand_notice": "You have folded and will leave the room after this hand finishes.",
+    "left_after_hand": "Hand finished. You have left the room.",
+    "left_room": "Left the room."
   },
   "actions": {
     "fold": "Fold",

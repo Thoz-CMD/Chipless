@@ -144,8 +144,18 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
       window.removeEventListener("online", markOnline);
       window.removeEventListener("focus", refreshIdToken);
       void disconnectOperation.cancel();
-      // Mark offline but don't delete - let the system handle cleanup
-      markOffline();
+      // Only mark offline if the player is still in the room (not intentionally leaving).
+      // If the player was removed via the API, updating the (now-deleted) node would
+      // trigger a PERMISSION_DENIED validation error.
+      get(ref(database, `roomPlayers/${roomId}/${uid}`))
+        .then((snapshot) => {
+          if (snapshot.exists()) {
+            markOffline();
+          }
+        })
+        .catch(() => {
+          // Ignore errors on cleanup
+        });
     };
   } catch (error) {
     if (error instanceof FirebaseError) {

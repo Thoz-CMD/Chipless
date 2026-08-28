@@ -72,7 +72,19 @@
     "reveal_flop": "เปิดไพ่ Flop",
     "reveal_turn": "เปิดไพ่ Turn",
     "reveal_river": "เปิดไพ่ River",
-    "reveal_showdown": "เปิดไพ่ Showdown"
+    "reveal_showdown": "เปิดไพ่ Showdown",
+    "start_next_hand": "เริ่มตาถัดไป",
+    "starting_next_hand": "กำลังเริ่มตาถัดไป...",
+    "waiting_for_next_hand": "🃏 กำลังรอโฮสต์สับไพ่และเริ่มแจกไพ่ในตาถัดไป...",
+    "hand_summary_winner": "🏆 {winnerName} ชนะตานี้! (+{amount} {currency})",
+    "leave_in_hand_title": "ยืนยันการออกจากห้อง?",
+    "leave_in_hand_warning": "คุณกำลังเล่นอยู่ในตานี้ หากออกตอนนี้จะถือว่าหมอบ (Fold) ทันที และชิปที่คุณลงไปแล้วจะไม่ได้รับคืน ยืนยันที่จะออกหรือไม่?",
+    "leave_room_description": "คุณจะออกจากห้องนี้ทันที",
+    "confirm_leave": "ยืนยันออกจากห้อง (หมอบ)",
+    "stay_in_game": "เล่นต่อ",
+    "leave_after_hand_notice": "คุณได้หมอบแล้ว และจะออกจากห้องอัตโนมัติเมื่อจบตานี้",
+    "left_after_hand": "จบตาแล้ว ออกจากห้องเรียบร้อย",
+    "left_room": "ออกจากห้องสำเร็จแล้ว"
   },
   "actions": {
     "fold": "หมอบ",

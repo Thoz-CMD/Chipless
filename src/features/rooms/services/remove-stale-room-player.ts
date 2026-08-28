@@ -91,9 +91,8 @@ export async function removeStaleRoomPlayer({
   }
 
   // Repair game state before removing player (transfer dealer/blind positions)
-  // Only if the player is kicked, not if they leave voluntarily
   try {
-    await repairRoomAfterPlayerLeaves({ roomId, leavingUid: uid, isKicked: false });
+    await repairRoomAfterPlayerLeaves({ roomId, leavingUid: uid });
   } catch (error) {
     console.error("Failed to repair room after player leaves:", error);
     // Continue with removal even if repair fails

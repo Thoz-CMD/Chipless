@@ -88,6 +88,9 @@ export async function deleteRoom(roomId: string): Promise<void> {
     // Delete room secrets (rules allow this only when no players remain).
     await remove(ref(database, `roomSecrets/${roomId}`));
 
+    // Delete room player history
+    await remove(ref(database, `roomPlayerHistory/${roomId}`));
+
     // Finally delete the room itself.
     await remove(ref(database, `rooms/${roomId}`));
   } catch (error) {

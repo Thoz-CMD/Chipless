@@ -1,4 +1,4 @@
-export type BettingRound = "preflop" | "flop" | "turn" | "river" | "showdown";
+export type BettingRound = "preflop" | "flop" | "turn" | "river" | "showdown" | "summary";
 
 export type PlayerStatus = "active" | "folded" | "all-in";
 
@@ -87,7 +87,8 @@ export function isHoldemGameState(value: unknown): value is HoldemGameState {
       state.bettingRound === "flop" ||
       state.bettingRound === "turn" ||
       state.bettingRound === "river" ||
-      state.bettingRound === "showdown") &&
+      state.bettingRound === "showdown" ||
+      state.bettingRound === "summary") &&
     typeof state.pot === "number" &&
     typeof state.currentBet === "number" &&
     typeof state.minimumRaise === "number" &&
@@ -611,4 +612,65 @@ export function applyHoldemAction(
       state.currentTurn,
     ),
   });
+}
+
+export function foldPlayerOutOfTurn(
+  state: HoldemGameState,
+  playerUid: string,
+): HoldemGameState {
+  const playerIndex = state.players.findIndex((p) => p.uid === playerUid);
+
+  if (playerIndex < 0) {
+    return state;
+  }
+
+  const targetPlayer = state.players[playerIndex];
+
+  if (!targetPlayer || targetPlayer.hasFolded) {
+    return state;
+  }
+
+  const actionLog = state.actionLog ?? [];
+  const nextEntry: HoldemActionLogEntry = {
+    id: (actionLog.at(-1)?.id ?? 0) + 1,
+    uid: targetPlayer.uid,
+    displayName: targetPlayer.displayName,
+    action: "Fold",
+    bettingRound: state.bettingRound,
+  };
+
+  const updatedPlayers = state.players.map((p, idx) =>
+    idx === playerIndex ? { ...p, hasFolded: true, hasActed: true } : p,
+  );
+
+  const stateWithFoldedPlayer: HoldemGameState = {
+    ...state,
+    players: updatedPlayers,
+    actionLog: [...actionLog.slice(-4), nextEntry],
+  };
+
+  const nonFoldedPlayers = updatedPlayers.filter((p) => !p.hasFolded);
+
+  if (nonFoldedPlayers.length <= 1) {
+    return {
+      ...stateWithFoldedPlayer,
+      bettingRound: "showdown",
+      currentBet: 0,
+      currentTurn: -1,
+      players: resetRoundContributions(updatedPlayers),
+    };
+  }
+
+  if (state.currentTurn === playerIndex) {
+    if (allActivePlayersMatchedBet(stateWithFoldedPlayer)) {
+      return moveToNextBettingRound(stateWithFoldedPlayer);
+    }
+
+    return {
+      ...stateWithFoldedPlayer,
+      currentTurn: nextActivePosition(stateWithFoldedPlayer, playerIndex) ?? -1,
+    };
+  }
+
+  return stateWithFoldedPlayer;
 }
