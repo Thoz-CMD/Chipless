@@ -34,7 +34,7 @@ function getSeatCoordinates(
   if (index === 0 || playerCount <= 1) {
     return {
       x: 50,
-      y: 88,
+      y: 81,
     };
   }
 
@@ -44,10 +44,10 @@ function getSeatCoordinates(
       ? 270
       : 180 + ((index - 1) * 180) / (upperSeatCount - 1);
   const radians = (angle * Math.PI) / 180;
-  const radiusX = 39;
-  const radiusY = 42;
+  const radiusX = 37;
+  const radiusY = 32;
   const centerX = 50;
-  const centerY = 50;
+  const centerY = 47;
 
   return {
     x: centerX + radiusX * Math.cos(radians),
@@ -314,11 +314,11 @@ export function GameTable({
 
   return (
     <section className="relative mx-auto h-full w-full">
-      <div className="absolute top-1/2 left-1/2 h-[70%] w-[56%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),rgba(0,0,0,0.92)_62%)] shadow-[inset_0_0_42px_rgba(255,255,255,0.08),0_0_28px_rgba(255,255,255,0.08)]" />
-      <div className="absolute top-1/2 left-1/2 h-[60%] w-[44%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-black/35" />
+      <div className="absolute top-[47%] left-1/2 h-[70%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),rgba(0,0,0,0.92)_62%)] shadow-[inset_0_0_42px_rgba(255,255,255,0.08),0_0_28px_rgba(255,255,255,0.08)]" />
+      <div className="absolute top-[47%] left-1/2 h-[58%] w-[44%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-black/35" />
 
       {/* Center table display - Logo and Community Cards */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-3">
+      <div className="absolute top-[47%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
         {/* Winner Announcement */}
         {latestWinnerName ? (
           <div className="animate-in fade-in zoom-in duration-500 px-5 py-2">

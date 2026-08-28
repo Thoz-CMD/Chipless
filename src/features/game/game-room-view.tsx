@@ -627,8 +627,8 @@ export function GameRoomView({
       </div>
 
       {/* Game Table - Flexible space, centered */}
-      <div className="flex flex-1 items-center justify-center overflow-hidden">
-        <div className="relative aspect-[3/4] w-full max-w-[430px] md:max-w-[600px] lg:max-w-[430px]">
+      <div className="flex flex-1 items-center justify-center overflow-visible py-2">
+        <div className="relative aspect-[4/4.5] w-full max-w-[430px] md:max-w-[600px] lg:max-w-[430px]">
           <GameTable
             roomId={room.id}
             players={players}
