@@ -24,6 +24,10 @@ export function PlayerSeat({
   onDragOver,
   onDrop,
   onDragEnd,
+  onTouchStart,
+  onTouchMove,
+  onTouchEnd,
+  onTouchCancel,
 }: {
   player: RoomPlayerListItem;
   isCurrentUser: boolean;
@@ -46,6 +50,10 @@ export function PlayerSeat({
   onDragOver?: () => void;
   onDrop?: () => void;
   onDragEnd?: () => void;
+  onTouchStart?: (event: React.TouchEvent) => void;
+  onTouchMove?: (event: React.TouchEvent) => void;
+  onTouchEnd?: (event: React.TouchEvent) => void;
+  onTouchCancel?: (event: React.TouchEvent) => void;
 }) {
   const name = player.displayName ?? "Unnamed";
   const isOffline = player.online === false;
@@ -58,8 +66,9 @@ export function PlayerSeat({
     : hasFolded
       ? "opacity-50"
       : isOffline
-        ? "opacity-45 grayscale"
-        : "opacity-100";
+        ? "opacity-40 grayscale"
+        : "";
+
   const nameColorClass = isWaitingForNextHand
     ? "text-white/65"
     : hasFolded
@@ -67,59 +76,59 @@ export function PlayerSeat({
       : isOffline
         ? "text-white/55"
         : "text-white";
-  const title = isWaitingForNextHand
-    ? `${name} is waiting for the next hand`
-    : draggable
-      ? "Drag to rearrange seats or click for summary"
-      : `Click to view ${name}'s summary`;
 
-  // Determine action badge color - matching the image design
+  const title = isOffline
+    ? "Offline player"
+    : isWaitingForNextHand
+      ? "Joined while hand in progress"
+      : draggable
+        ? "Drag to rearrange seats or click for summary"
+        : undefined;
+
+  const isBB = lastAction === "บิ๊กบลายด์" || lastAction === "Big Blind";
+  const isSB = lastAction === "สมอลบลายด์" || lastAction === "Small Blind";
+  const isFold = lastAction === "หมอบ" || lastAction === "Fold";
+  const isCheck = lastAction === "ผ่าน" || lastAction === "Check";
+  const isCall = lastAction === "ตาม" || lastAction === "Call";
+  const isBet = lastAction === "เดิมพัน" || lastAction === "Bet";
+  const isRaise = lastAction === "เรส" || lastAction === "Raise";
+  const isAllIn = lastAction === "ออลอิน" || lastAction === "All-In";
+
   const getActionBadgeStyle = () => {
-    if (!lastAction) return null;
-    
-    // Cyan/Blue for BB, SB blinds
-    if (
-      lastAction === "Big Blind" ||
-      lastAction === "บิ๊กบลายด์" ||
-      lastAction === "Small Blind" ||
-      lastAction === "สมอลบลายด์" ||
-      lastAction === "Post Blind" ||
-      lastAction === "โพสต์บลายด์"
-    ) {
-      return "bg-gradient-to-b from-cyan-400 to-cyan-600 text-black shadow-[0_3px_0_0_rgba(0,100,120,0.8)]";
+    if (isFold) {
+      return "bg-gradient-to-b from-red-400 to-red-600 text-white shadow-[0_3px_0_0_rgba(150,0,0,0.8)]";
     }
-    
-    switch (lastAction) {
-      case "Fold":
-      case "หมอบ":
-        return "bg-gradient-to-b from-red-500 to-red-700 text-white shadow-[0_3px_0_0_rgba(100,0,0,0.8)]";
-      case "Check":
-      case "ผ่าน":
-        return "bg-gradient-to-b from-cyan-400 to-cyan-600 text-black shadow-[0_3px_0_0_rgba(0,100,120,0.8)]";
-      case "Call":
-      case "ตาม":
-        return "bg-gradient-to-b from-green-400 to-green-600 text-black shadow-[0_3px_0_0_rgba(0,80,0,0.8)]";
-      case "Bet":
-      case "เดิมพัน":
-      case "Raise":
-      case "เรส":
-        return "bg-gradient-to-b from-yellow-400 to-yellow-600 text-black shadow-[0_3px_0_0_rgba(100,80,0,0.8)]";
-      case "All In":
-      case "ออลอิน":
-        return "bg-gradient-to-b from-amber-400 to-amber-600 text-black shadow-[0_3px_0_0_rgba(120,80,0,0.8)]";
-      default:
-        return "bg-gradient-to-b from-gray-400 to-gray-600 text-black shadow-[0_3px_0_0_rgba(40,40,40,0.8)]";
+    if (isCheck) {
+      return "bg-gradient-to-b from-gray-200 to-gray-400 text-black shadow-[0_3px_0_0_rgba(100,100,100,0.8)]";
     }
+    if (isCall) {
+      return "bg-gradient-to-b from-emerald-300 to-emerald-500 text-black shadow-[0_3px_0_0_rgba(0,120,60,0.8)]";
+    }
+    if (isBet || isRaise) {
+      return "bg-gradient-to-b from-sky-300 to-sky-500 text-black shadow-[0_3px_0_0_rgba(0,100,180,0.8)]";
+    }
+    if (isAllIn) {
+      return "bg-gradient-to-b from-amber-300 to-amber-500 text-black shadow-[0_3px_0_0_rgba(180,100,0,0.8)]";
+    }
+    if (isBB || isSB) {
+      return "bg-gradient-to-b from-cyan-300 to-cyan-500 text-black shadow-[0_3px_0_0_rgba(0,140,160,0.8)]";
+    }
+    return "bg-gradient-to-b from-gray-400 to-gray-600 text-black shadow-[0_3px_0_0_rgba(40,40,40,0.8)]";
   };
 
   const actionBadgeStyle = getActionBadgeStyle();
 
   return (
     <div
+      data-player-uid={player.uid}
       draggable={draggable}
       onClick={onClick}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+      onTouchCancel={onTouchCancel}
       onDragOver={(event) => {
         if (!draggable) {
           return;
@@ -136,16 +145,18 @@ export function PlayerSeat({
         event.preventDefault();
         onDrop?.();
       }}
-      className={`group absolute w-24 -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 select-none ${seatOpacityClass} ${draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
+      className={`group absolute w-24 -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 select-none ${seatOpacityClass} ${draggable ? "cursor-grab active:cursor-grabbing touch-none" : ""}`}
       style={style}
       title={title}
     >
-      <div className="relative mx-auto w-fit transition-transform duration-150 group-hover:scale-105">
+      <div className={`relative mx-auto w-fit transition-transform duration-150 ${isSelected ? "scale-110" : "group-hover:scale-105"}`}>
         <div
           className={
-            isSelected || isDragTarget
-              ? "rounded-full ring-2 ring-white/80 ring-offset-2 ring-offset-black"
-              : undefined
+            isSelected
+              ? "rounded-full ring-2 ring-amber-400/90 ring-offset-2 ring-offset-black shadow-[0_0_20px_rgba(245,158,11,0.7)] animate-pulse"
+              : isDragTarget
+                ? "rounded-full ring-2 ring-sky-400/90 ring-offset-2 ring-offset-black shadow-[0_0_20px_rgba(14,165,233,0.7)] scale-105"
+                : undefined
           }
         >
           <PlayerAvatar

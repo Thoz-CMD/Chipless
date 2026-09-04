@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { CSSProperties } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -29,31 +29,18 @@ type SeatCoordinates = {
   y: number;
 };
 
-function getSeatCoordinates(
-  index: number,
-  playerCount: number,
-): SeatCoordinates {
-  if (index === 0 || playerCount <= 1) {
-    return {
-      x: 50,
-      y: 81,
-    };
+function getSeatCoordinates(index: number, total: number): SeatCoordinates {
+  if (total <= 0) {
+    return { x: 50, y: 50 };
   }
 
-  const upperSeatCount = playerCount - 1;
-  const angle =
-    upperSeatCount === 1
-      ? 270
-      : 180 + ((index - 1) * 180) / (upperSeatCount - 1);
-  const radians = (angle * Math.PI) / 180;
-  const radiusX = 37;
-  const radiusY = 32;
-  const centerX = 50;
-  const centerY = 47;
+  const angle = (index / total) * 2 * Math.PI + Math.PI / 2;
+  const radiusX = 40;
+  const radiusY = 36;
 
   return {
-    x: centerX + radiusX * Math.cos(radians),
-    y: centerY + radiusY * Math.sin(radians),
+    x: 50 + radiusX * Math.cos(angle),
+    y: 47 + radiusY * Math.sin(angle),
   };
 }
 
@@ -66,38 +53,32 @@ function getSeatPosition(coordinates: SeatCoordinates): CSSProperties {
 
 function orderPlayersForSeats(
   players: RoomPlayerListItem[],
-  currentUid: string,
+  currentUid?: string,
 ): RoomPlayerListItem[] {
-  const orderedPlayers = [...players].sort((first, second) => {
-    const firstSeat = first.seatIndex;
-    const secondSeat = second.seatIndex;
+  const sorted = [...players].sort((first, second) => {
+    const firstSeat = first.seatIndex ?? Number.MAX_SAFE_INTEGER;
+    const secondSeat = second.seatIndex ?? Number.MAX_SAFE_INTEGER;
 
-    if (typeof firstSeat === "number" && typeof secondSeat === "number") {
+    if (firstSeat !== secondSeat) {
       return firstSeat - secondSeat;
-    }
-
-    if (typeof firstSeat === "number") {
-      return -1;
-    }
-
-    if (typeof secondSeat === "number") {
-      return 1;
     }
 
     return joinedAtValue(first) - joinedAtValue(second);
   });
 
-  const currentPlayerIndex = orderedPlayers.findIndex(
-    (player) => player.uid === currentUid,
-  );
+  if (!currentUid) {
+    return sorted;
+  }
 
-  if (currentPlayerIndex <= 0) {
-    return orderedPlayers;
+  const currentIndex = sorted.findIndex((player) => player.uid === currentUid);
+
+  if (currentIndex <= 0) {
+    return sorted;
   }
 
   return [
-    ...orderedPlayers.slice(currentPlayerIndex),
-    ...orderedPlayers.slice(0, currentPlayerIndex),
+    ...sorted.slice(currentIndex),
+    ...sorted.slice(0, currentIndex),
   ];
 }
 
@@ -105,16 +86,10 @@ function formatAmount(amount: number): string {
   return amount.toLocaleString("en-US");
 }
 
-function formatAction(entry: HoldemActionLogEntry, t: (key: string) => string): string {
-  const actionKey = entry.action.toLowerCase().replace(/\s+/g, "_");
-  const translatedAction = t(actionKey);
-  
-  return entry.amount === undefined
-    ? translatedAction
-    : `${translatedAction} ${formatAmount(entry.amount)}`;
-}
-
-function getRevealStatus(bettingRound: BettingRound | undefined, t: (key: string) => string): string | null {
+function getRevealStatus(
+  bettingRound: BettingRound | undefined,
+  t: (key: string) => string,
+): string | null {
   if (bettingRound === "flop") {
     return t("reveal_flop");
   }
@@ -135,23 +110,23 @@ function getRevealStatus(bettingRound: BettingRound | undefined, t: (key: string
 }
 
 export function GameTable({
-  roomId,
   players,
   currentUid,
   hostUid,
-  canArrangeSeats,
+  currentBigBlindUid,
+  currentSmallBlindUid,
+  currentTurnUid,
   potAmount,
   currentPlayerContribution,
-  currentSmallBlindUid,
-  currentBigBlindUid,
+  bettingRound,
+  actionLog,
+  foldedUids,
   smallBlindAmount,
   bigBlindAmount,
-  currentTurnUid,
-  activeHandPlayerUids,
-  foldedUids,
-  actionLog,
-  bettingRound,
   latestWinnerName,
+  canArrangeSeats = false,
+  roomId,
+  activeHandPlayerUids,
   winStreaksByUid,
   extinguishAnimation,
   winnerAmountsByUid,
@@ -159,23 +134,23 @@ export function GameTable({
   tableTheme,
   cardTheme,
 }: {
-  roomId: string;
   players: RoomPlayerListItem[];
-  currentUid: string;
-  hostUid: string;
-  canArrangeSeats: boolean;
+  currentUid?: string;
+  hostUid?: string;
+  currentBigBlindUid?: string;
+  currentSmallBlindUid?: string;
+  currentTurnUid?: string;
   potAmount: number;
   currentPlayerContribution?: number;
-  currentSmallBlindUid?: string;
-  currentBigBlindUid?: string;
+  bettingRound?: BettingRound;
+  actionLog?: HoldemActionLogEntry[];
+  foldedUids?: Set<string>;
   smallBlindAmount?: number;
   bigBlindAmount?: number;
-  currentTurnUid?: string;
-  activeHandPlayerUids?: ReadonlySet<string>;
-  foldedUids?: Set<string>;
-  actionLog?: HoldemActionLogEntry[];
-  bettingRound?: BettingRound;
-  latestWinnerName?: string;
+  latestWinnerName?: string | null;
+  canArrangeSeats?: boolean;
+  roomId: string;
+  activeHandPlayerUids?: Set<string>;
   winStreaksByUid?: Record<string, number>;
   extinguishAnimation?: ExtinguishedWinStreak | null;
   winnerAmountsByUid?: Record<string, number>;
@@ -186,6 +161,11 @@ export function GameTable({
   const activeTableTheme: TableTheme = tableTheme ?? TABLE_THEMES[DEFAULT_TABLE_ID];
   const [draggingUid, setDraggingUid] = useState<string | null>(null);
   const [dragTargetUid, setDragTargetUid] = useState<string | null>(null);
+  const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const isTouchDraggingRef = useRef<boolean>(false);
+  const activeTouchUidRef = useRef<string | null>(null);
+
   const t = useTranslations("game");
   const tActions = useTranslations("actions");
   const tCommon = useTranslations("common");
@@ -200,11 +180,10 @@ export function GameTable({
   const bigBlindUid =
     currentBigBlindUid && playerUids.has(currentBigBlindUid)
       ? currentBigBlindUid
-      : playerUids.has(hostUid)
+      : playerUids.has(hostUid ?? "")
         ? hostUid
         : players[0]?.uid;
   
-  // Calculate Dealer position (one position before Small Blind)
   const dealerUid = currentSmallBlindUid 
     ? (() => {
         const sbIndex = seatedPlayers.findIndex(p => p.uid === currentSmallBlindUid);
@@ -221,24 +200,20 @@ export function GameTable({
     ? null
     : getRevealStatus(bettingRound, t);
 
-  // Get last action for each player in current betting round
   const lastActionByUid = new Map<string, string>();
   const lastActionAmountByUid = new Map<string, string>();
   
   if (actionLog && bettingRound) {
-    // Filter actions from current betting round only
     const currentRoundActions = actionLog.filter(
       (entry) => entry.bettingRound === bettingRound
     );
     
-    // Get the most recent action for each player
     currentRoundActions.forEach((entry) => {
       const actionKey = entry.action.toLowerCase().replace(/\s+/g, "_");
       const translatedAction = tActions(actionKey);
       
       lastActionByUid.set(entry.uid, translatedAction);
       
-      // Store amount separately if available
       if (entry.amount !== undefined) {
         lastActionAmountByUid.set(
           entry.uid,
@@ -248,9 +223,7 @@ export function GameTable({
     });
   }
 
-  // Show BB/SB badges at round start (preflop with no actions yet)
   if (bettingRound === "preflop" && smallBlindAmount && bigBlindAmount) {
-    // Add SB badge if player has no action yet
     if (currentSmallBlindUid && !lastActionByUid.has(currentSmallBlindUid)) {
       lastActionByUid.set(currentSmallBlindUid, tActions("small_blind"));
       lastActionAmountByUid.set(
@@ -259,7 +232,6 @@ export function GameTable({
       );
     }
     
-    // Add BB badge if player has no action yet
     if (bigBlindUid && !lastActionByUid.has(bigBlindUid)) {
       lastActionByUid.set(bigBlindUid, tActions("big_blind"));
       lastActionAmountByUid.set(
@@ -269,7 +241,6 @@ export function GameTable({
     }
   }
   
-  // Force show "Fold" for folded players even if action is not in current round
   if (foldedUids) {
     foldedUids.forEach((uid) => {
       if (!lastActionByUid.has(uid)) {
@@ -279,14 +250,16 @@ export function GameTable({
   }
 
   async function swapSeats(targetUid: string) {
-    if (!canArrangeSeats || !draggingUid || draggingUid === targetUid) {
+    const fromUid = draggingUid || activeTouchUidRef.current;
+    if (!canArrangeSeats || !fromUid || fromUid === targetUid) {
       setDraggingUid(null);
       setDragTargetUid(null);
+      activeTouchUidRef.current = null;
       return;
     }
 
     const fromIndex = seatedPlayers.findIndex(
-      (player) => player.uid === draggingUid,
+      (player) => player.uid === fromUid,
     );
     const toIndex = seatedPlayers.findIndex(
       (player) => player.uid === targetUid,
@@ -295,6 +268,7 @@ export function GameTable({
     if (fromIndex < 0 || toIndex < 0) {
       setDraggingUid(null);
       setDragTargetUid(null);
+      activeTouchUidRef.current = null;
       return;
     }
 
@@ -316,12 +290,121 @@ export function GameTable({
     } finally {
       setDraggingUid(null);
       setDragTargetUid(null);
+      activeTouchUidRef.current = null;
     }
   }
 
+  const handleTouchStart = (playerUid: string, e: React.TouchEvent) => {
+    if (!canArrangeSeats) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+    activeTouchUidRef.current = playerUid;
+    isTouchDraggingRef.current = false;
+
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+    }
+
+    touchTimerRef.current = setTimeout(() => {
+      isTouchDraggingRef.current = true;
+      setDraggingUid(playerUid);
+      try {
+        if (typeof navigator !== "undefined" && navigator.vibrate) {
+          navigator.vibrate(40);
+        }
+      } catch {
+        // ignore
+      }
+    }, 200);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!canArrangeSeats) return;
+    const touch = e.touches[0];
+    if (!touch) return;
+
+    if (!isTouchDraggingRef.current) {
+      if (touchStartPosRef.current) {
+        const dx = Math.abs(touch.clientX - touchStartPosRef.current.x);
+        const dy = Math.abs(touch.clientY - touchStartPosRef.current.y);
+        if (dx > 10 || dy > 10) {
+          if (touchTimerRef.current) {
+            clearTimeout(touchTimerRef.current);
+            touchTimerRef.current = null;
+          }
+        }
+      }
+      return;
+    }
+
+    if (e.cancelable) {
+      e.preventDefault();
+    }
+
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetSeat = el?.closest("[data-player-uid]");
+    const targetUid = targetSeat?.getAttribute("data-player-uid");
+
+    if (targetUid && targetUid !== activeTouchUidRef.current) {
+      setDragTargetUid(targetUid);
+    } else {
+      setDragTargetUid(null);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+
+    if (isTouchDraggingRef.current) {
+      isTouchDraggingRef.current = false;
+      const touch = e.changedTouches[0];
+      if (touch) {
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const targetSeat = el?.closest("[data-player-uid]");
+        const targetUid = targetSeat?.getAttribute("data-player-uid");
+        if (targetUid && targetUid !== activeTouchUidRef.current) {
+          void swapSeats(targetUid);
+          return;
+        }
+      }
+    }
+  };
+
+  const handleTouchCancel = () => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+    isTouchDraggingRef.current = false;
+    activeTouchUidRef.current = null;
+    setDraggingUid(null);
+    setDragTargetUid(null);
+  };
+
   return (
     <section className="relative mx-auto h-full w-full">
-      {/* Outer table felt */}
+      {canArrangeSeats && draggingUid && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full border border-amber-400/50 bg-black/90 px-3 py-1 text-xs text-amber-200 shadow-[0_0_16px_rgba(245,158,11,0.3)] animate-pulse">
+          <span>แตะหรือลากไปวางที่ตำแหน่งที่ต้องการย้าย</span>
+          <button
+            type="button"
+            onClick={() => {
+              setDraggingUid(null);
+              setDragTargetUid(null);
+              activeTouchUidRef.current = null;
+            }}
+            className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px] text-white hover:bg-white/30"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <div
         className="absolute top-[47%] left-1/2 h-[70%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-full border transition-all duration-500"
         style={{
@@ -330,7 +413,6 @@ export function GameTable({
           boxShadow: activeTableTheme.tableGlow,
         }}
       />
-      {/* Inner table ring */}
       <div
         className="absolute top-[47%] left-1/2 h-[58%] w-[44%] -translate-x-1/2 -translate-y-1/2 rounded-full border transition-all duration-500"
         style={{
@@ -339,9 +421,7 @@ export function GameTable({
         }}
       />
 
-      {/* Center table display - Logo and Community Cards */}
       <div className="absolute top-[47%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
-        {/* Winner Announcement */}
         {latestWinnerName ? (
           <div className="animate-in fade-in zoom-in duration-500 px-5 py-2">
             <span className="text-sm font-bold text-amber-200 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
@@ -350,7 +430,6 @@ export function GameTable({
           </div>
         ) : null}
         
-        {/* Reveal Status (Flop, Turn, River, Showdown) */}
         {revealStatus ? (
           <div className="animate-in fade-in zoom-in duration-500 px-5 py-2">
             <span className="text-sm font-bold text-amber-200 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
@@ -359,7 +438,6 @@ export function GameTable({
           </div>
         ) : null}
         
-        {/* Pot and Player Contribution Display */}
         <div
           className="flex items-center gap-3 rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-500"
           style={{ background: activeTableTheme.potBg }}
@@ -379,10 +457,8 @@ export function GameTable({
           ) : null}
         </div>
         
-        {/* Community Cards */}
         <CommunityCards bettingRound={bettingRound} cardTheme={cardTheme} />
         
-        {/* Chipless Logo */}
         <div className="font-audiowide text-white text-xs font-bold tracking-wider opacity-80">
           CHIPLESS
         </div>
@@ -399,8 +475,7 @@ export function GameTable({
           isWaitingForNextHand={
             activeHandPlayerUids !== undefined &&
             !activeHandPlayerUids.has(player.uid) &&
-            // Only show waiting if hand has actually started (has actions)
-            actionLog && actionLog.length > 0
+            actionLog !== undefined && actionLog.length > 0
           }
           winStreak={winStreaksByUid?.[player.uid]}
           isExtinguishing={extinguishAnimation?.extinguishedUids.includes(
@@ -422,12 +497,27 @@ export function GameTable({
           }
           onClick={() => {
             if (draggingUid) {
-              void swapSeats(player.uid);
+              if (draggingUid === player.uid) {
+                setDraggingUid(null);
+                setDragTargetUid(null);
+                activeTouchUidRef.current = null;
+              } else {
+                void swapSeats(player.uid);
+              }
+              return;
+            }
+
+            if (canArrangeSeats) {
+              setDraggingUid(player.uid);
               return;
             }
 
             onSelectPlayer?.(player);
           }}
+          onTouchStart={(e) => handleTouchStart(player.uid, e)}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchCancel}
           onDragStart={() => {
             if (canArrangeSeats) {
               setDraggingUid(player.uid);
