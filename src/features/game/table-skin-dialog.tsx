@@ -1,5 +1,15 @@
 import { useState, useEffect } from "react";
-import { ChevronRight, ChevronLeft, Globe, Palette, Zap, Check } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronLeft,
+  ChevronUp,
+  ChevronDown,
+  Globe,
+  Palette,
+  Zap,
+  Check,
+  ArrowLeftRight,
+} from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { useRouter, usePathname } from "@/i18n/routing";
@@ -29,11 +39,16 @@ import {
   updateRoomSettings,
   UpdateRoomSettingsError,
 } from "@/features/rooms/services/update-room-settings";
+import {
+  updatePlayerSeatOrder,
+  UpdatePlayerSeatsError,
+} from "@/features/rooms/services/update-player-seats";
+import type { RoomPlayerListItem } from "@/features/rooms/services/subscribe-room-players";
 import { cn } from "@/lib/utils";
 
 // ─── Sub-page type ─────────────────────────────────────────────────────────────
 
-type Page = "main" | "theme";
+type Page = "main" | "theme" | "seats";
 
 // ─── Swatch components ────────────────────────────────────────────────────────
 
@@ -393,19 +408,24 @@ function HostRoomSettingsSection({
 
 function MainPage({
   onGoTheme,
+  onGoSeats,
   roomId,
   isHost,
+  canArrangeSeats,
   allInMode,
   maxAllInAmount,
 }: {
   onGoTheme: () => void;
+  onGoSeats?: () => void;
   roomId?: string;
   isHost?: boolean;
+  canArrangeSeats?: boolean;
   allInMode?: boolean;
   maxAllInAmount?: number;
 }) {
   const locale = useLocale();
   const isTh = locale === "th";
+  const t = useTranslations("room_settings");
 
   return (
     <div className="mt-2 space-y-3">
@@ -416,12 +436,164 @@ function MainPage({
         description={isTh ? "พื้นหลัง, โต๊ะ, ไพ่" : "Background, Table, Cards"}
         onClick={onGoTheme}
       />
+      {isHost && canArrangeSeats && onGoSeats && (
+        <SettingsRow
+          icon={ArrowLeftRight}
+          label={t("arrange_seats")}
+          description={t("arrange_seats_description")}
+          onClick={onGoSeats}
+        />
+      )}
       <HostRoomSettingsSection
         roomId={roomId}
         isHost={isHost}
         allInMode={allInMode}
         maxAllInAmount={maxAllInAmount}
       />
+    </div>
+  );
+}
+
+// ─── Seats Page ────────────────────────────────────────────────────────────────
+
+function SeatsPage({
+  roomId,
+  players,
+  onStartTableRearrange,
+}: {
+  roomId?: string;
+  players?: RoomPlayerListItem[];
+  onStartTableRearrange?: () => void;
+}) {
+  const t = useTranslations("room_settings");
+  const [selectedUid, setSelectedUid] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  if (!roomId || !players || players.length < 2) {
+    return (
+      <div className="py-8 text-center text-sm text-white/50">
+        ต้องมีผู้เล่นอย่างน้อย 2 คนเพื่อจัดตำแหน่ง
+      </div>
+    );
+  }
+
+  const sortedPlayers = [...players].sort((a, b) => (a.seatIndex ?? 0) - (b.seatIndex ?? 0));
+
+  const handleSwap = async (uidA: string, uidB: string) => {
+    if (uidA === uidB || isUpdating) return;
+    setIsUpdating(true);
+    const fromIndex = sortedPlayers.findIndex((p) => p.uid === uidA);
+    const toIndex = sortedPlayers.findIndex((p) => p.uid === uidB);
+    if (fromIndex < 0 || toIndex < 0) {
+      setIsUpdating(false);
+      return;
+    }
+
+    const nextPlayers = [...sortedPlayers];
+    const [moved] = nextPlayers.splice(fromIndex, 1);
+    nextPlayers.splice(toIndex, 0, moved);
+
+    try {
+      await updatePlayerSeatOrder(
+        roomId,
+        nextPlayers.map((p) => p.uid),
+      );
+      toast.success(t("settings_saved"));
+    } catch {
+      toast.error(t("settings_save_error"));
+    } finally {
+      setIsUpdating(false);
+      setSelectedUid(null);
+    }
+  };
+
+  const handlePlayerClick = (uid: string) => {
+    if (isUpdating) return;
+    if (!selectedUid) {
+      setSelectedUid(uid);
+    } else if (selectedUid === uid) {
+      setSelectedUid(null);
+    } else {
+      void handleSwap(selectedUid, uid);
+    }
+  };
+
+  const handleMoveStep = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= sortedPlayers.length) return;
+    const playerA = sortedPlayers[index];
+    const playerB = sortedPlayers[targetIndex];
+    if (playerA && playerB) {
+      void handleSwap(playerA.uid, playerB.uid);
+    }
+  };
+
+  return (
+    <div className="mt-2 space-y-4">
+      <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-white/70 space-y-1">
+        <p className="font-semibold text-white">{t("arrange_seats_tap_hint")}</p>
+        {selectedUid && (
+          <p className="text-amber-300 animate-pulse font-medium">{t("arrange_seats_selected")}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {sortedPlayers.map((player, index) => {
+          const isSelected = selectedUid === player.uid;
+          return (
+            <div
+              key={player.uid}
+              onClick={() => handlePlayerClick(player.uid)}
+              className={cn(
+                "flex items-center gap-3 rounded-xl border p-2.5 transition-all cursor-pointer select-none",
+                isSelected
+                  ? "border-amber-400 bg-amber-500/20 shadow-[0_0_12px_rgba(245,158,11,0.3)] ring-1 ring-amber-400"
+                  : "border-white/10 bg-white/4 hover:border-white/25 hover:bg-white/8",
+              )}
+            >
+              <div className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-xs font-bold text-white/70">
+                {index + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-white truncate">
+                  {player.displayName ?? "Unnamed"}
+                </p>
+                {player.role === "host" && (
+                  <span className="text-[10px] text-amber-300 font-medium leading-none">Host</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <button
+                  type="button"
+                  disabled={index === 0 || isUpdating}
+                  onClick={() => handleMoveStep(index, -1)}
+                  className="rounded-lg p-1.5 text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-20 transition-colors"
+                >
+                  <ChevronUp className="size-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled={index === sortedPlayers.length - 1 || isUpdating}
+                  onClick={() => handleMoveStep(index, 1)}
+                  className="rounded-lg p-1.5 text-white/50 hover:text-white hover:bg-white/10 disabled:opacity-20 transition-colors"
+                >
+                  <ChevronDown className="size-4" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {onStartTableRearrange && (
+        <Button
+          type="button"
+          onClick={onStartTableRearrange}
+          className="w-full bg-white/10 hover:bg-white/20 text-white font-semibold text-xs h-10 border border-white/20"
+        >
+          {t("arrange_on_table")}
+        </Button>
+      )}
     </div>
   );
 }
@@ -491,6 +663,8 @@ export function TableSkinDialog({
   open,
   roomId,
   isHost,
+  canArrangeSeats,
+  players,
   allInMode,
   maxAllInAmount,
   bgThemeId,
@@ -499,11 +673,14 @@ export function TableSkinDialog({
   onSelectBg,
   onSelectTable,
   onSelectCard,
+  onStartTableRearrange,
   onClose,
 }: {
   open: boolean;
   roomId?: string;
   isHost?: boolean;
+  canArrangeSeats?: boolean;
+  players?: RoomPlayerListItem[];
   allInMode?: boolean;
   maxAllInAmount?: number;
   bgThemeId: BgThemeId;
@@ -512,11 +689,13 @@ export function TableSkinDialog({
   onSelectBg: (id: BgThemeId) => void;
   onSelectTable: (id: TableThemeId) => void;
   onSelectCard: (id: CardThemeId) => void;
+  onStartTableRearrange?: () => void;
   onClose: () => void;
 }) {
   const [page, setPage] = useState<Page>("main");
   const locale = useLocale();
   const isTh = locale === "th";
+  const t = useTranslations("room_settings");
 
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
@@ -525,7 +704,16 @@ export function TableSkinDialog({
     }
   };
 
-  const title = page === "main" ? (isTh ? "ตั้งค่า" : "Settings") : (isTh ? "ธีม" : "Theme");
+  const title =
+    page === "main"
+      ? isTh
+        ? "ตั้งค่า"
+        : "Settings"
+      : page === "theme"
+        ? isTh
+          ? "ธีม"
+          : "Theme"
+        : t("arrange_seats");
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -549,8 +737,10 @@ export function TableSkinDialog({
         {page === "main" && (
           <MainPage
             onGoTheme={() => setPage("theme")}
+            onGoSeats={() => setPage("seats")}
             roomId={roomId}
             isHost={isHost}
+            canArrangeSeats={canArrangeSeats}
             allInMode={allInMode}
             maxAllInAmount={maxAllInAmount}
           />
@@ -564,6 +754,17 @@ export function TableSkinDialog({
             onSelectBg={onSelectBg}
             onSelectTable={onSelectTable}
             onSelectCard={onSelectCard}
+          />
+        )}
+
+        {page === "seats" && (
+          <SeatsPage
+            roomId={roomId}
+            players={players}
+            onStartTableRearrange={() => {
+              onStartTableRearrange?.();
+              onClose();
+            }}
           />
         )}
       </DialogContent>

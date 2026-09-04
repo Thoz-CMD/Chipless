@@ -39,7 +39,14 @@
     "settings_saved": "บันทึกการตั้งค่าห้องแล้ว",
     "settings_save_error": "ไม่สามารถบันทึกการตั้งค่าได้",
     "mode_active": "เปิดใช้งาน",
-    "mode_disabled": "ปิดใช้งาน"
+    "mode_disabled": "ปิดใช้งาน",
+    "arrange_seats": "จัดตำแหน่งที่นั่ง",
+    "arrange_seats_description": "แตะผู้เล่นเพื่อสลับตำแหน่งที่นั่ง",
+    "arrange_seats_tap_hint": "แตะผู้เล่นคนที่ 1 แล้วแตะคนที่ 2 เพื่อสลับที่",
+    "arrange_seats_selected": "เลือกแล้ว (แตะอีกคนเพื่อสลับที่)",
+    "arrange_on_table": "จัดตำแหน่งบนโต๊ะ",
+    "arranging_on_table_banner": "โหมดจัดตำแหน่ง: แตะผู้เล่นคนที่ 1 แล้วแตะคนที่ 2 เพื่อสลับที่",
+    "done": "เสร็จสิ้น"
   },
   "join_room": {
     "title": "เข้าร่วมห้อง",

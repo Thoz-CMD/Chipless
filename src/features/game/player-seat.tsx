@@ -16,18 +16,9 @@ export function PlayerSeat({
   lastActionAmount,
   style,
   seatCoordinates,
-  draggable,
   isSelected,
   isDragTarget,
   onClick,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
-  onTouchStart,
-  onTouchMove,
-  onTouchEnd,
-  onTouchCancel,
 }: {
   player: RoomPlayerListItem;
   isCurrentUser: boolean;
@@ -42,18 +33,9 @@ export function PlayerSeat({
   lastActionAmount?: string;
   style: CSSProperties;
   seatCoordinates?: { x: number; y: number };
-  draggable?: boolean;
   isSelected?: boolean;
   isDragTarget?: boolean;
   onClick?: () => void;
-  onDragStart?: () => void;
-  onDragOver?: () => void;
-  onDrop?: () => void;
-  onDragEnd?: () => void;
-  onTouchStart?: (event: React.TouchEvent) => void;
-  onTouchMove?: (event: React.TouchEvent) => void;
-  onTouchEnd?: (event: React.TouchEvent) => void;
-  onTouchCancel?: (event: React.TouchEvent) => void;
 }) {
   const name = player.displayName ?? "Unnamed";
   const isOffline = player.online === false;
@@ -81,9 +63,7 @@ export function PlayerSeat({
     ? "Offline player"
     : isWaitingForNextHand
       ? "Joined while hand in progress"
-      : draggable
-        ? "Drag to rearrange seats or click for summary"
-        : undefined;
+      : `Click to view ${name}'s summary`;
 
   const isBB = lastAction === "บิ๊กบลายด์" || lastAction === "Big Blind";
   const isSB = lastAction === "สมอลบลายด์" || lastAction === "Small Blind";
@@ -121,31 +101,8 @@ export function PlayerSeat({
   return (
     <div
       data-player-uid={player.uid}
-      draggable={draggable}
       onClick={onClick}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-      onTouchCancel={onTouchCancel}
-      onDragOver={(event) => {
-        if (!draggable) {
-          return;
-        }
-
-        event.preventDefault();
-        onDragOver?.();
-      }}
-      onDrop={(event) => {
-        if (!draggable) {
-          return;
-        }
-
-        event.preventDefault();
-        onDrop?.();
-      }}
-      className={`group absolute w-24 -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 select-none ${seatOpacityClass} ${draggable ? "cursor-grab active:cursor-grabbing touch-none" : ""}`}
+      className={`group absolute w-24 -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 select-none touch-manipulation ${seatOpacityClass}`}
       style={style}
       title={title}
     >
@@ -153,7 +110,7 @@ export function PlayerSeat({
         <div
           className={
             isSelected
-              ? "rounded-full ring-2 ring-amber-400/90 ring-offset-2 ring-offset-black shadow-[0_0_20px_rgba(245,158,11,0.7)] animate-pulse"
+              ? "rounded-full ring-4 ring-amber-400/90 ring-offset-2 ring-offset-black shadow-[0_0_24px_rgba(245,158,11,0.85)] animate-pulse"
               : isDragTarget
                 ? "rounded-full ring-2 ring-sky-400/90 ring-offset-2 ring-offset-black shadow-[0_0_20px_rgba(14,165,233,0.7)] scale-105"
                 : undefined

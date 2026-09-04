@@ -140,17 +140,17 @@ export function ActionPanel({
   const minimumActionAmount = aggressiveAction?.minimumAmount ?? minBetAmount;
   const maxAffordableActionAmount = aggressiveAction
     ? getMaxAffordableActionAmount({
-        action: aggressiveAction,
-        playerStack: currentPlayer?.stack ?? 0,
-        amountToCall,
-        currentBet: gameState.currentBet,
-      })
+      action: aggressiveAction,
+      playerStack: currentPlayer?.stack ?? 0,
+      amountToCall,
+      currentBet: gameState.currentBet,
+    })
     : maxBetAmount;
   const maximumActionAmount = aggressiveAction
     ? Math.max(
-        minimumActionAmount,
-        Math.min(maxBetAmount, maxAffordableActionAmount),
-      )
+      minimumActionAmount,
+      Math.min(maxBetAmount, maxAffordableActionAmount),
+    )
     : maxBetAmount;
   const [betAmount, setBetAmount] = useState(() => minBetAmount);
   const currentBet = clampBet(
@@ -163,8 +163,8 @@ export function ActionPanel({
     maximumActionAmount === minimumActionAmount
       ? 100
       : ((currentBet - minimumActionAmount) /
-          (maximumActionAmount - minimumActionAmount)) *
-        100;
+        (maximumActionAmount - minimumActionAmount)) *
+      100;
 
   const [prevRound, setPrevRound] = useState(gameState.bettingRound);
   if (gameState.bettingRound !== prevRound) {
@@ -324,7 +324,7 @@ export function ActionPanel({
     <section className="rounded-xl border border-white/30 bg-black/70 p-3 shadow-[0_0_24px_rgba(255,255,255,0.08)]">
       {gameState.gameMode === "allin" ? (
         <div className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300">
-          <span className="font-semibold">⚡ โหมดออลอิน</span>
+          <span className="font-semibold">โหมดออลอิน</span>
           <span>
             {gameState.bettingRound === "preflop"
               ? "พรีฟลอบ: ตาม / หมอบ"
@@ -408,11 +408,10 @@ export function ActionPanel({
                       setPendingAction((prev) => (prev === "fold" ? null : "fold"));
                     }}
                     disabled={isSubmittingAction}
-                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
-                      pendingAction === "fold"
+                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "fold"
                         ? "border-yellow-500/60 bg-yellow-500/20"
                         : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                    }`}
+                      }`}
                   >
                     {tActions("fold")}
                   </button>
@@ -422,11 +421,10 @@ export function ActionPanel({
                       setPendingAction((prev) => (prev === "allin" ? null : "allin"));
                     }}
                     disabled={isSubmittingAction}
-                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-bold shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-all disabled:opacity-35 ${
-                      pendingAction === "allin"
+                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-bold shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-all disabled:opacity-35 ${pendingAction === "allin"
                         ? "border-amber-400 bg-amber-500/40 text-amber-200 shadow-[0_0_14px_rgba(245,158,11,0.35)]"
                         : "border-amber-500/40 bg-amber-500/20 text-amber-300 hover:border-amber-400 hover:bg-amber-500/30"
-                    }`}
+                      }`}
                   >
                     {`${tActions("all_in")} ${formatAmount(gameState.maxAllInAmount ?? 0)}`}
                   </button>
@@ -440,11 +438,10 @@ export function ActionPanel({
                       setPendingAction((prev) => (prev === "check-fold" ? null : "check-fold"));
                     }}
                     disabled={isSubmittingAction}
-                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
-                      pendingAction === "check-fold"
+                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "check-fold"
                         ? "border-yellow-500/60 bg-yellow-500/20"
                         : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                    }`}
+                      }`}
                   >
                     {tActions("check_fold")}
                   </button>
@@ -461,11 +458,10 @@ export function ActionPanel({
                         }
                       }}
                       disabled={isSubmittingAction}
-                      className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
-                        pendingAction === "call"
+                      className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "call"
                           ? "border-yellow-500/60 bg-yellow-500/20"
                           : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                      }`}
+                        }`}
                     >
                       {`${tActions("call")} ${formatAmount(amountToCall)}`}
                     </button>
@@ -476,11 +472,10 @@ export function ActionPanel({
                         setPendingAction((prev) => (prev === "check" ? null : "check"));
                       }}
                       disabled={isSubmittingAction}
-                      className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
-                        pendingAction === "check"
+                      className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "check"
                           ? "border-yellow-500/60 bg-yellow-500/20"
                           : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                      }`}
+                        }`}
                     >
                       {tActions("check")}
                     </button>
@@ -496,11 +491,10 @@ export function ActionPanel({
                     setPendingAction((prev) => (prev === "check-fold" ? null : "check-fold"));
                   }}
                   disabled={isSubmittingAction}
-                  className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
-                    pendingAction === "check-fold"
+                  className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "check-fold"
                       ? "border-yellow-500/60 bg-yellow-500/20"
                       : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                  }`}
+                    }`}
                 >
                   {tActions("check_fold")}
                 </button>
@@ -518,11 +512,10 @@ export function ActionPanel({
                       }
                     }}
                     disabled={isSubmittingAction}
-                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
-                      pendingAction === "call"
+                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "call"
                         ? "border-yellow-500/60 bg-yellow-500/20"
                         : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                    }`}
+                      }`}
                   >
                     {`${tActions("call")} ${formatAmount(amountToCall)}`}
                   </button>
@@ -533,11 +526,10 @@ export function ActionPanel({
                       setPendingAction((prev) => (prev === "check" ? null : "check"));
                     }}
                     disabled={isSubmittingAction}
-                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
-                      pendingAction === "check"
+                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "check"
                         ? "border-yellow-500/60 bg-yellow-500/20"
                         : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                    }`}
+                      }`}
                   >
                     {tActions("check")}
                   </button>
@@ -549,11 +541,10 @@ export function ActionPanel({
                     setPendingAction((prev) => (prev === "call-any" ? null : "call-any"));
                   }}
                   disabled={isSubmittingAction}
-                  className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
-                    pendingAction === "call-any"
+                  className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "call-any"
                       ? "border-yellow-500/60 bg-yellow-500/20"
                       : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                  }`}
+                    }`}
                 >
                   {tActions("call_any")}
                 </button>
@@ -588,13 +579,12 @@ export function ActionPanel({
                       currentBet: gameState.currentBet,
                     }) > (currentPlayer?.stack ?? 0)))
               }
-              className={`h-9 flex-1 min-w-20 rounded-lg border px-1 text-xs font-semibold transition-all duration-150 disabled:opacity-35 ${
-                isAllIn
+              className={`h-9 flex-1 min-w-20 rounded-lg border px-1 text-xs font-semibold transition-all duration-150 disabled:opacity-35 ${isAllIn
                   ? "border-amber-400/80 bg-amber-500/35 text-amber-200 shadow-[inset_0_0_14px_rgba(245,158,11,0.35),0_0_14px_rgba(245,158,11,0.3)] hover:border-amber-300 hover:bg-amber-500/45 font-bold"
                   : isBetOrRaise
                     ? "border-sky-400/70 bg-sky-500/30 text-sky-100 shadow-[inset_0_0_14px_rgba(14,165,233,0.3),0_0_12px_rgba(14,165,233,0.25)] hover:border-sky-300 hover:bg-sky-500/40"
                     : "border-white/35 bg-white/15 text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] hover:border-white/50 hover:bg-white/25"
-              }`}
+                }`}
             >
               {getActionButtonLabel({
                 action,

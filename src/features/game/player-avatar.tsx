@@ -59,7 +59,8 @@ export function PlayerAvatar({
           <img
             src={photoUrl}
             alt={name}
-            className="size-full object-cover"
+            draggable={false}
+            className="size-full object-cover pointer-events-none select-none"
           />
         ) : (
           <span className="drop-shadow-sm">

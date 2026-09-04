@@ -39,7 +39,14 @@
     "settings_saved": "Room settings updated",
     "settings_save_error": "Failed to update settings",
     "mode_active": "Enabled",
-    "mode_disabled": "Disabled"
+    "mode_disabled": "Disabled",
+    "arrange_seats": "Arrange Seats",
+    "arrange_seats_description": "Tap players to swap seat positions",
+    "arrange_seats_tap_hint": "Tap 1st player then tap 2nd player to swap",
+    "arrange_seats_selected": "Selected (tap another player to swap)",
+    "arrange_on_table": "Arrange on Table",
+    "arranging_on_table_banner": "Arrange Mode: Tap 1st player then tap 2nd player to swap",
+    "done": "Done"
   },
   "join_room": {
     "title": "Join Room",

@@ -138,6 +138,7 @@ export function GameRoomView({
   const [isTransferringHost, setIsTransferringHost] = useState(false);
   const [isLeaderboardVisible, setIsLeaderboardVisible] = useState(false);
   const [isSkinDialogOpen, setIsSkinDialogOpen] = useState(false);
+  const [isArrangingSeats, setIsArrangingSeats] = useState(false);
   const {
     bgTheme,
     tableTheme,
@@ -736,6 +737,8 @@ export function GameRoomView({
             onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
             tableTheme={tableTheme}
             cardTheme={cardTheme}
+            isArrangingSeats={isArrangingSeats}
+            onExitRearrangeSeats={() => setIsArrangingSeats(false)}
           />
         </div>
       </div>
@@ -1037,6 +1040,11 @@ export function GameRoomView({
         open={isSkinDialogOpen}
         roomId={room.id}
         isHost={isHost}
+        canArrangeSeats={
+          isHost &&
+          (!isGameStarted || holdemGameState?.bettingRound === "summary")
+        }
+        players={players}
         allInMode={room.settings.allInMode}
         maxAllInAmount={room.settings.maxAllInAmount}
         bgThemeId={bgThemeId}
@@ -1045,6 +1053,7 @@ export function GameRoomView({
         onSelectBg={setBgThemeId}
         onSelectTable={setTableThemeId}
         onSelectCard={setCardThemeId}
+        onStartTableRearrange={() => setIsArrangingSeats(true)}
         onClose={() => setIsSkinDialogOpen(false)}
       />
 

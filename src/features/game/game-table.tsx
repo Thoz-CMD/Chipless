@@ -125,6 +125,8 @@ export function GameTable({
   bigBlindAmount,
   latestWinnerName,
   canArrangeSeats = false,
+  isArrangingSeats = false,
+  onExitRearrangeSeats,
   roomId,
   activeHandPlayerUids,
   winStreaksByUid,
@@ -149,6 +151,8 @@ export function GameTable({
   bigBlindAmount?: number;
   latestWinnerName?: string | null;
   canArrangeSeats?: boolean;
+  isArrangingSeats?: boolean;
+  onExitRearrangeSeats?: () => void;
   roomId: string;
   activeHandPlayerUids?: Set<string>;
   winStreaksByUid?: Record<string, number>;
@@ -159,16 +163,12 @@ export function GameTable({
   cardTheme?: CardTheme;
 }) {
   const activeTableTheme: TableTheme = tableTheme ?? TABLE_THEMES[DEFAULT_TABLE_ID];
-  const [draggingUid, setDraggingUid] = useState<string | null>(null);
-  const [dragTargetUid, setDragTargetUid] = useState<string | null>(null);
-  const touchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
-  const isTouchDraggingRef = useRef<boolean>(false);
-  const activeTouchUidRef = useRef<string | null>(null);
+  const [selectedSeatUid, setSelectedSeatUid] = useState<string | null>(null);
 
   const t = useTranslations("game");
   const tActions = useTranslations("actions");
   const tCommon = useTranslations("common");
+  const tSettings = useTranslations("room_settings");
   const seatedPlayers = orderPlayersForSeats(players, currentUid);
   const seatCoordinatesByUid = new Map(
     seatedPlayers.map((player, index) => [
@@ -250,25 +250,20 @@ export function GameTable({
   }
 
   async function swapSeats(targetUid: string) {
-    const fromUid = draggingUid || activeTouchUidRef.current;
-    if (!canArrangeSeats || !fromUid || fromUid === targetUid) {
-      setDraggingUid(null);
-      setDragTargetUid(null);
-      activeTouchUidRef.current = null;
+    if (!canArrangeSeats || !selectedSeatUid || selectedSeatUid === targetUid) {
+      setSelectedSeatUid(null);
       return;
     }
 
     const fromIndex = seatedPlayers.findIndex(
-      (player) => player.uid === fromUid,
+      (player) => player.uid === selectedSeatUid,
     );
     const toIndex = seatedPlayers.findIndex(
       (player) => player.uid === targetUid,
     );
 
     if (fromIndex < 0 || toIndex < 0) {
-      setDraggingUid(null);
-      setDragTargetUid(null);
-      activeTouchUidRef.current = null;
+      setSelectedSeatUid(null);
       return;
     }
 
@@ -281,6 +276,7 @@ export function GameTable({
         roomId,
         nextPlayers.map((player) => player.uid),
       );
+      toast.success(tSettings("settings_saved"));
     } catch (error) {
       const message =
         error instanceof UpdatePlayerSeatsError || error instanceof Error
@@ -288,120 +284,28 @@ export function GameTable({
           : "Unable to change seats.";
       toast.error(message);
     } finally {
-      setDraggingUid(null);
-      setDragTargetUid(null);
-      activeTouchUidRef.current = null;
+      setSelectedSeatUid(null);
     }
   }
 
-  const handleTouchStart = (playerUid: string, e: React.TouchEvent) => {
-    if (!canArrangeSeats) return;
-    const touch = e.touches[0];
-    if (!touch) return;
-
-    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-    activeTouchUidRef.current = playerUid;
-    isTouchDraggingRef.current = false;
-
-    if (touchTimerRef.current) {
-      clearTimeout(touchTimerRef.current);
-    }
-
-    touchTimerRef.current = setTimeout(() => {
-      isTouchDraggingRef.current = true;
-      setDraggingUid(playerUid);
-      try {
-        if (typeof navigator !== "undefined" && navigator.vibrate) {
-          navigator.vibrate(40);
-        }
-      } catch {
-        // ignore
-      }
-    }, 200);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!canArrangeSeats) return;
-    const touch = e.touches[0];
-    if (!touch) return;
-
-    if (!isTouchDraggingRef.current) {
-      if (touchStartPosRef.current) {
-        const dx = Math.abs(touch.clientX - touchStartPosRef.current.x);
-        const dy = Math.abs(touch.clientY - touchStartPosRef.current.y);
-        if (dx > 10 || dy > 10) {
-          if (touchTimerRef.current) {
-            clearTimeout(touchTimerRef.current);
-            touchTimerRef.current = null;
-          }
-        }
-      }
-      return;
-    }
-
-    if (e.cancelable) {
-      e.preventDefault();
-    }
-
-    const el = document.elementFromPoint(touch.clientX, touch.clientY);
-    const targetSeat = el?.closest("[data-player-uid]");
-    const targetUid = targetSeat?.getAttribute("data-player-uid");
-
-    if (targetUid && targetUid !== activeTouchUidRef.current) {
-      setDragTargetUid(targetUid);
-    } else {
-      setDragTargetUid(null);
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchTimerRef.current) {
-      clearTimeout(touchTimerRef.current);
-      touchTimerRef.current = null;
-    }
-
-    if (isTouchDraggingRef.current) {
-      isTouchDraggingRef.current = false;
-      const touch = e.changedTouches[0];
-      if (touch) {
-        const el = document.elementFromPoint(touch.clientX, touch.clientY);
-        const targetSeat = el?.closest("[data-player-uid]");
-        const targetUid = targetSeat?.getAttribute("data-player-uid");
-        if (targetUid && targetUid !== activeTouchUidRef.current) {
-          void swapSeats(targetUid);
-          return;
-        }
-      }
-    }
-  };
-
-  const handleTouchCancel = () => {
-    if (touchTimerRef.current) {
-      clearTimeout(touchTimerRef.current);
-      touchTimerRef.current = null;
-    }
-    isTouchDraggingRef.current = false;
-    activeTouchUidRef.current = null;
-    setDraggingUid(null);
-    setDragTargetUid(null);
-  };
-
   return (
     <section className="relative mx-auto h-full w-full">
-      {canArrangeSeats && draggingUid && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full border border-amber-400/50 bg-black/90 px-3 py-1 text-xs text-amber-200 shadow-[0_0_16px_rgba(245,158,11,0.3)] animate-pulse">
-          <span>แตะหรือลากไปวางที่ตำแหน่งที่ต้องการย้าย</span>
-          <button
-            type="button"
-            onClick={() => {
-              setDraggingUid(null);
-              setDragTargetUid(null);
-              activeTouchUidRef.current = null;
-            }}
-            className="rounded-full bg-white/20 px-1.5 py-0.2 text-[10px] text-white hover:bg-white/30"
-          >
-            ✕
-          </button>
+      {/* Active rearrange banner on table */}
+      {isArrangingSeats && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full border border-amber-400 bg-amber-950/90 px-3.5 py-1.5 text-xs text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.4)] backdrop-blur-md animate-in fade-in slide-in-from-top-2">
+          <span>{selectedSeatUid ? tSettings("arrange_seats_selected") : tSettings("arranging_on_table_banner")}</span>
+          {onExitRearrangeSeats && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedSeatUid(null);
+                onExitRearrangeSeats();
+              }}
+              className="rounded-full bg-amber-400 px-2.5 py-0.5 text-[11px] font-bold text-black hover:bg-amber-300 transition-colors shadow-sm ml-1"
+            >
+              {tSettings("done")}
+            </button>
+          )}
         </div>
       )}
 
@@ -490,52 +394,23 @@ export function GameTable({
           )}
           seatCoordinates={seatCoordinatesByUid.get(player.uid) ??
               getSeatCoordinates(index, seatedPlayers.length)}
-          draggable={canArrangeSeats}
-          isSelected={draggingUid === player.uid}
-          isDragTarget={
-            dragTargetUid === player.uid && draggingUid !== player.uid
-          }
+          isSelected={isArrangingSeats && selectedSeatUid === player.uid}
           onClick={() => {
-            if (draggingUid) {
-              if (draggingUid === player.uid) {
-                setDraggingUid(null);
-                setDragTargetUid(null);
-                activeTouchUidRef.current = null;
+            if (isArrangingSeats) {
+              if (!selectedSeatUid) {
+                // Select 1st player
+                setSelectedSeatUid(player.uid);
+              } else if (selectedSeatUid === player.uid) {
+                // Deselect
+                setSelectedSeatUid(null);
               } else {
+                // Swap with 2nd player
                 void swapSeats(player.uid);
               }
               return;
             }
 
-            if (canArrangeSeats) {
-              setDraggingUid(player.uid);
-              return;
-            }
-
             onSelectPlayer?.(player);
-          }}
-          onTouchStart={(e) => handleTouchStart(player.uid, e)}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onTouchCancel={handleTouchCancel}
-          onDragStart={() => {
-            if (canArrangeSeats) {
-              setDraggingUid(player.uid);
-            }
-          }}
-          onDragOver={() => {
-            if (canArrangeSeats) {
-              setDragTargetUid(player.uid);
-            }
-          }}
-          onDrop={() => {
-            if (canArrangeSeats) {
-              void swapSeats(player.uid);
-            }
-          }}
-          onDragEnd={() => {
-            setDraggingUid(null);
-            setDragTargetUid(null);
           }}
         />
       ))}
