@@ -158,7 +158,6 @@ export function GameRoomView({
     useState<WinnerCelebrationData | null>(null);
   const [extinguishAnimation, setExtinguishAnimation] =
     useState<ExtinguishedWinStreak | null>(null);
-  const observedLatestSettlementHandRef = useRef<number | null>(null);
   const isHost = room.hostUid === currentUid;
   const isGameStarted = room.status === "playing";
   const holdemGameState = room.gameState?.hand ?? null;
@@ -170,6 +169,9 @@ export function GameRoomView({
   const latestSettlement = Object.values(settlements).sort(
     (first, second) => second.handNumber - first.handNumber,
   )[0];
+  const observedLatestSettlementHandRef = useRef<number | null>(
+    latestSettlement?.handNumber ?? 0,
+  );
   const latestSettlementWinnerNet = useMemo(() => {
     if (!latestSettlement) {
       return 0;
@@ -286,8 +288,7 @@ export function GameRoomView({
   useEffect(() => {
     const latestSettlementHandNumber = latestSettlement?.handNumber ?? null;
 
-    if (observedLatestSettlementHandRef.current === null) {
-      observedLatestSettlementHandRef.current = latestSettlementHandNumber;
+    if (latestSettlementHandNumber === null) {
       return;
     }
 
@@ -317,24 +318,35 @@ export function GameRoomView({
       latestSettlementHandNumber !== null &&
       Object.keys(winnerAmountsByUid).length > 0
     ) {
-      const winnerNames = latestWinnerUids.map(
-        (uid) => latestSettlement?.playerResults[uid]?.displayName ?? "Winner",
-      );
       const isCurrentUserWinner = latestWinnerUids.includes(currentUid);
-      const wonAmount = isCurrentUserWinner
-        ? winnerAmountsByUid[currentUid]
-        : Object.values(winnerAmountsByUid)[0];
+      const userWonAmount = winnerAmountsByUid[currentUid] ?? 0;
 
+      // Full-screen golden aura & coin shower celebration: EXCLUSIVELY on winner's device
+      if (isCurrentUserWinner && userWonAmount > 0) {
+        timeoutIds.push(
+          window.setTimeout(() => {
+            setWinnerCelebration({
+              handNumber: latestSettlementHandNumber,
+              winnerNames: [currentDisplayName || "You"],
+              totalPot: latestSettlement?.pot,
+              isCurrentUserWinner: true,
+              wonAmount: userWonAmount,
+              currency: tCommon("currency"),
+            });
+          }, 0),
+        );
+        timeoutIds.push(
+          window.setTimeout(() => {
+            setWinnerCelebration((current) =>
+              current?.handNumber === latestSettlementHandNumber ? null : current,
+            );
+          }, 4500),
+        );
+      }
+
+      // Seat chip amount animation for all winners at the table
       timeoutIds.push(
         window.setTimeout(() => {
-          setWinnerCelebration({
-            handNumber: latestSettlementHandNumber,
-            winnerNames,
-            totalPot: latestSettlement?.pot,
-            isCurrentUserWinner,
-            wonAmount,
-            currency: tCommon("currency"),
-          });
           setWinnerAmountAnimation({
             handNumber: latestSettlementHandNumber,
             amountsByUid: winnerAmountsByUid,
@@ -347,13 +359,6 @@ export function GameRoomView({
             current?.handNumber === latestSettlementHandNumber ? null : current,
           );
         }, 1800),
-      );
-      timeoutIds.push(
-        window.setTimeout(() => {
-          setWinnerCelebration((current) =>
-            current?.handNumber === latestSettlementHandNumber ? null : current,
-          );
-        }, 4200),
       );
     }
 
