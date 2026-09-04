@@ -704,10 +704,7 @@ export function GameRoomView({
             players={players}
             currentUid={currentUid}
             hostUid={room.hostUid}
-            canArrangeSeats={
-              isHost &&
-              (!isGameStarted || holdemGameState?.bettingRound === "summary")
-            }
+            canArrangeSeats={isHost}
             potAmount={holdemGameState?.pot ?? room.settings.bigBlind}
             currentPlayerContribution={
               holdemGameState?.players.find((player) => player.uid === currentUid)
@@ -1040,10 +1037,7 @@ export function GameRoomView({
         open={isSkinDialogOpen}
         roomId={room.id}
         isHost={isHost}
-        canArrangeSeats={
-          isHost &&
-          (!isGameStarted || holdemGameState?.bettingRound === "summary")
-        }
+        canArrangeSeats={isHost}
         players={players}
         allInMode={room.settings.allInMode}
         maxAllInAmount={room.settings.maxAllInAmount}

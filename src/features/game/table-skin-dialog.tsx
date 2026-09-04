@@ -436,7 +436,7 @@ function MainPage({
         description={isTh ? "พื้นหลัง, โต๊ะ, ไพ่" : "Background, Table, Cards"}
         onClick={onGoTheme}
       />
-      {isHost && canArrangeSeats && onGoSeats && (
+      {isHost && onGoSeats && (
         <SettingsRow
           icon={ArrowLeftRight}
           label={t("arrange_seats")}
