@@ -21,9 +21,15 @@
           ".validate": "!newData.exists() || (newData.val() === 'waiting' || newData.val() === 'playing')"
         },
         "settings": {
-          ".validate": "!newData.exists() || newData.hasChildren(['bigBlind'])",
+          ".write": "auth != null && root.child('rooms').child($roomId).child('hostUid').val() === auth.uid",
           "bigBlind": {
-            ".validate": "newData.isNumber() && newData.val() > 0"
+            ".validate": "!newData.exists() || (newData.isNumber() && newData.val() > 0)"
+          },
+          "allInMode": {
+            ".validate": "!newData.exists() || newData.isBoolean()"
+          },
+          "maxAllInAmount": {
+            ".validate": "!newData.exists() || (newData.isNumber() && newData.val() > 0)"
           },
           "$other": {
             ".validate": false
@@ -85,6 +91,12 @@
             },
             "lastAggressorPosition": {
               ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0)"
+            },
+            "gameMode": {
+              ".validate": "!newData.exists() || (newData.val() === 'standard' || newData.val() === 'allin')"
+            },
+            "maxAllInAmount": {
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() > 0)"
             },
             "$other": {
               ".validate": false

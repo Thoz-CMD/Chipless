@@ -104,6 +104,9 @@ export function PlayerSeat({
       case "Raise":
       case "เรส":
         return "bg-gradient-to-b from-yellow-400 to-yellow-600 text-black shadow-[0_3px_0_0_rgba(100,80,0,0.8)]";
+      case "All In":
+      case "ออลอิน":
+        return "bg-gradient-to-b from-amber-400 to-amber-600 text-black shadow-[0_3px_0_0_rgba(120,80,0,0.8)]";
       default:
         return "bg-gradient-to-b from-gray-400 to-gray-600 text-black shadow-[0_3px_0_0_rgba(40,40,40,0.8)]";
     }

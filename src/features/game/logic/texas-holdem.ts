@@ -20,7 +20,7 @@ export type HoldemActionLogEntry = {
   id: number;
   uid: string;
   displayName: string;
-  action: "Fold" | "Check" | "Call" | "Bet" | "Raise";
+  action: "Fold" | "Check" | "Call" | "Bet" | "Raise" | "All In";
   amount?: number;
   bettingRound: BettingRound;
 };
@@ -41,6 +41,8 @@ export type HoldemGameState = {
   playerCards?: PlayerCardsByUid;
   actionLog?: HoldemActionLogEntry[];
   lastAggressorPosition?: number;
+  gameMode?: "standard" | "allin";
+  maxAllInAmount?: number;
 };
 
 export type HoldemAction =
@@ -48,14 +50,16 @@ export type HoldemAction =
   | { type: "check" }
   | { type: "call"; amount: number }
   | { type: "bet"; amount: number }
-  | { type: "raise"; amount: number };
+  | { type: "raise"; amount: number }
+  | { type: "allin"; amount: number };
 
 export type AvailableAction =
   | { type: "fold"; label: "Fold" }
   | { type: "check"; label: "Check" }
   | { type: "call"; label: string; amount: number }
   | { type: "bet"; label: "Bet"; minimumAmount: number }
-  | { type: "raise"; label: "Raise"; minimumAmount: number };
+  | { type: "raise"; label: "Raise"; minimumAmount: number }
+  | { type: "allin"; label: "All In"; amount: number };
 
 export type PlayerPositionLabel = "BTN" | "SB" | "BB";
 
@@ -69,6 +73,8 @@ export type CreateHoldemGameInput = {
   dealerPosition: number;
   bigBlind: number;
   playerCards?: PlayerCardsByUid;
+  gameMode?: "standard" | "allin";
+  maxAllInAmount?: number;
 };
 
 export function isHoldemGameState(value: unknown): value is HoldemGameState {
@@ -94,6 +100,11 @@ export function isHoldemGameState(value: unknown): value is HoldemGameState {
     typeof state.minimumRaise === "number" &&
     typeof state.smallBlind === "number" &&
     typeof state.bigBlind === "number" &&
+    (state.gameMode === undefined ||
+      state.gameMode === "standard" ||
+      state.gameMode === "allin") &&
+    (state.maxAllInAmount === undefined ||
+      typeof state.maxAllInAmount === "number") &&
     Array.isArray(state.players) &&
     state.players.every((player) => {
       if (!player || typeof player !== "object") {
@@ -136,7 +147,8 @@ export function isHoldemGameState(value: unknown): value is HoldemGameState {
               actionEntry.action === "Check" ||
               actionEntry.action === "Call" ||
               actionEntry.action === "Bet" ||
-              actionEntry.action === "Raise") &&
+              actionEntry.action === "Raise" ||
+              actionEntry.action === "All In") &&
             (actionEntry.amount === undefined ||
               typeof actionEntry.amount === "number") &&
             (actionEntry.bettingRound === "preflop" ||
@@ -239,7 +251,11 @@ function nextRound(round: BettingRound): BettingRound {
 }
 
 function moveToNextBettingRound(state: HoldemGameState): HoldemGameState {
-  const bettingRound = nextRound(state.bettingRound);
+  // All-In mode: after flop, skip turn/river and go straight to showdown
+  const bettingRound =
+    state.gameMode === "allin" && state.bettingRound === "flop"
+      ? "showdown"
+      : nextRound(state.bettingRound);
   const players = resetRoundContributions(state.players);
   const stateWithoutLastAggressor = { ...state };
 
@@ -347,7 +363,9 @@ function appendActionLog(
           ? "Call"
           : action.type === "bet"
             ? "Bet"
-            : "Raise";
+            : action.type === "allin"
+              ? "All In"
+              : "Raise";
   const nextEntry: HoldemActionLogEntry = {
     id: (actionLog.at(-1)?.id ?? 0) + 1,
     uid: player.uid,
@@ -371,6 +389,8 @@ export function createHoldemGameState({
   dealerPosition,
   bigBlind,
   playerCards = {},
+  gameMode,
+  maxAllInAmount,
 }: CreateHoldemGameInput): HoldemGameState {
   assertValidPlayerCount(players.length);
 
@@ -422,6 +442,8 @@ export function createHoldemGameState({
     players: initializedPlayers,
     communityCards: [],
     playerCards,
+    ...(gameMode ? { gameMode } : {}),
+    ...(maxAllInAmount !== undefined ? { maxAllInAmount } : {}),
   };
 }
 
@@ -472,6 +494,43 @@ export function getAvailableActions(
   ) {
     return [];
   }
+
+  // ── All-In Mode ──────────────────────────────────────────────────────────────
+  if (state.gameMode === "allin") {
+    const maxAllIn = state.maxAllInAmount ?? 0;
+    const amountToCall = getAmountToCall(state, position);
+
+    if (state.bettingRound === "preflop") {
+      // Preflop: Call big blind or Fold only — no raises allowed
+      if (amountToCall === 0) {
+        // Big blind position with no raise — can check
+        return [
+          { type: "fold", label: "Fold" },
+          { type: "check", label: "Check" },
+        ];
+      }
+      return [
+        { type: "fold", label: "Fold" },
+        {
+          type: "call",
+          label: `Call ${formatAmount(amountToCall)}`,
+          amount: amountToCall,
+        },
+      ];
+    }
+
+    if (state.bettingRound === "flop") {
+      // Flop: Fold or All-In (fixed at maxAllInAmount) only
+      return [
+        { type: "fold", label: "Fold" },
+        { type: "allin", label: "All In", amount: maxAllIn },
+      ];
+    }
+
+    // Should not reach here in allin mode (flop → showdown)
+    return [];
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
 
   const amountToCall = getAmountToCall(state, position);
   const minimumAggressiveAmount =
@@ -534,6 +593,41 @@ export function applyHoldemAction(
   ) {
     throw new Error(`Action ${action.type} is not available.`);
   }
+
+  // ── All-In action (allin mode flop) ─────────────────────────────────────────
+  if (action.type === "allin") {
+    const maxAllIn = action.amount;
+
+    if (state.currentBet === 0) {
+      // First player to bet in this round — treat as a bet
+      const actualAmount = Math.min(maxAllIn, player.stack);
+      const stateAfterAllin = updateCurrentPlayer(
+        stateWithActionLog,
+        (currentPlayer) => putChipsIn(currentPlayer, maxAllIn),
+      );
+      return maybeAdvanceAfterAction({
+        ...stateAfterAllin,
+        pot: state.pot + actualAmount,
+        currentBet: maxAllIn,
+        minimumRaise: 1,
+        lastAggressorPosition: state.currentTurn,
+        players: resetOtherPlayersActedAfterAggression(
+          stateAfterAllin.players,
+          state.currentTurn,
+        ),
+      });
+    } else {
+      // Calling an existing all-in bet
+      const amountToCall = getAmountToCall(state, state.currentTurn);
+      return maybeAdvanceAfterAction({
+        ...updateCurrentPlayer(stateWithActionLog, (currentPlayer) =>
+          putChipsIn(currentPlayer, amountToCall),
+        ),
+        pot: state.pot + amountToCall,
+      });
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────────
 
   if (action.type === "fold") {
     return maybeAdvanceAfterAction(

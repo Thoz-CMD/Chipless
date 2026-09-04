@@ -103,7 +103,7 @@ function playLatestActionSound({
     return;
   }
 
-  if (action === "Call" || action === "Bet" || action === "Raise") {
+  if (action === "Call" || action === "Bet" || action === "Raise" || action === "All In") {
     playChipSound();
     return;
   }

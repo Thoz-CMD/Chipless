@@ -42,6 +42,8 @@ type RoomSummaryData = {
   };
   settings: {
     bigBlind: number;
+    allInMode?: boolean;
+    maxAllInAmount?: number;
   };
 };
 

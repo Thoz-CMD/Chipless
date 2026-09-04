@@ -28,6 +28,19 @@
     "big_blind_description": "This is the amount required to open and reveal cards.",
     "button": "Create Room"
   },
+  "room_settings": {
+    "title": "Settings",
+    "host_settings": "Room Settings (Host)",
+    "all_in_mode": "All-In Mode",
+    "all_in_mode_description": "Preflop call/fold → Flop all-in (skip Turn/River)",
+    "max_all_in_amount": "Max All-In Amount (THB)",
+    "max_all_in_amount_description": "Fixed all-in amount for flop round",
+    "save_settings": "Save",
+    "settings_saved": "Room settings updated",
+    "settings_save_error": "Failed to update settings",
+    "mode_active": "Enabled",
+    "mode_disabled": "Disabled"
+  },
   "join_room": {
     "title": "Join Room",
     "subtitle": "Select a waiting room",
@@ -105,9 +118,10 @@
     "check_cancel_bet": "A player placed a bet. Pre-check cancelled.",
     "call_cancel": "Cancelled pre-call",
     "call_active": "Will Call {amount} when it's your turn",
-    "call_cancel_raised": "A player raised the bet. Pre-call cancelled.",
     "call_any_cancel": "Cancelled Call Any",
-    "call_any_active": "Will Call Any when it's your turn"
+    "call_any_active": "Will Call Any when it's your turn",
+    "all_in_active": "Will All-In {amount} when it's your turn",
+    "fold_active": "Will Fold when it's your turn"
   },
   "profile": {
     "edit_profile": "Edit Profile",

@@ -1,8 +1,7 @@
-"use client";
-
-import { useState } from "react";
-import { ChevronRight, ChevronLeft, Globe, Palette } from "lucide-react";
-import { useLocale } from "next-intl";
+import { useState, useEffect } from "react";
+import { ChevronRight, ChevronLeft, Globe, Palette, Zap, Check } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { toast } from "sonner";
 import { useRouter, usePathname } from "@/i18n/routing";
 import {
   BG_ORDER,
@@ -24,6 +23,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  updateRoomSettings,
+  UpdateRoomSettingsError,
+} from "@/features/rooms/services/update-room-settings";
+import { cn } from "@/lib/utils";
 
 // ─── Sub-page type ─────────────────────────────────────────────────────────────
 
@@ -214,20 +220,207 @@ function LanguageRow() {
   );
 }
 
+// ─── Host Room Settings Section ──────────────────────────────────────────────
+
+function HostRoomSettingsSection({
+  roomId,
+  isHost,
+  allInMode = false,
+  maxAllInAmount = 50,
+}: {
+  roomId?: string;
+  isHost?: boolean;
+  allInMode?: boolean;
+  maxAllInAmount?: number;
+}) {
+  const t = useTranslations("room_settings");
+  const [localAllInMode, setLocalAllInMode] = useState(allInMode);
+  const [localAmount, setLocalAmount] = useState<number | string>(maxAllInAmount ?? 50);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setLocalAllInMode(allInMode);
+    setLocalAmount(maxAllInAmount ?? 50);
+  }, [allInMode, maxAllInAmount]);
+
+  if (!roomId) return null;
+
+  const presets = [10, 20, 50, 100];
+
+  const handleToggle = async (nextState: boolean) => {
+    if (!isHost || isSaving) return;
+    setLocalAllInMode(nextState);
+    setIsSaving(true);
+    try {
+      const parsedAmount = typeof localAmount === "number" ? localAmount : Number(localAmount) || 50;
+      await updateRoomSettings(roomId, {
+        allInMode: nextState,
+        maxAllInAmount: nextState ? parsedAmount : null,
+      });
+      toast.success(t("settings_saved"));
+    } catch {
+      toast.error(t("settings_save_error"));
+      setLocalAllInMode(allInMode);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveAmount = async (amount: number) => {
+    if (!isHost || isSaving) return;
+    setLocalAmount(amount);
+    setIsSaving(true);
+    try {
+      await updateRoomSettings(roomId, {
+        allInMode: true,
+        maxAllInAmount: amount,
+      });
+      toast.success(t("settings_saved"));
+    } catch {
+      toast.error(t("settings_save_error"));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!isHost) {
+    if (!allInMode) return null;
+    return (
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+        <div className="flex items-center gap-1.5 font-semibold">
+          <Zap className="size-4 text-amber-400" />
+          <span>{t("all_in_mode")}: {t("mode_active")} (฿{maxAllInAmount})</span>
+        </div>
+        <p className="mt-1 text-white/50">{t("all_in_mode_description")}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-white/15 bg-white/5 p-3.5 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Zap className={cn("size-4", localAllInMode ? "text-amber-400" : "text-white/60")} />
+          <div>
+            <p className="text-sm font-semibold text-white leading-none">{t("all_in_mode")}</p>
+            <p className="mt-0.5 text-[11px] text-white/45">{t("all_in_mode_description")}</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => handleToggle(!localAllInMode)}
+          disabled={isSaving}
+          className={cn(
+            "relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200",
+            localAllInMode ? "bg-amber-500" : "bg-white/20",
+          )}
+        >
+          <span
+            className={cn(
+              "absolute top-0.5 block size-5 rounded-full bg-white shadow-sm transition-transform duration-200",
+              localAllInMode ? "left-5" : "left-0.5",
+            )}
+          />
+        </button>
+      </div>
+
+      {localAllInMode && (
+        <div className="pt-2 border-t border-white/10 space-y-2">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-white/70">{t("max_all_in_amount")}</span>
+          </div>
+
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-amber-400/80">
+                ฿
+              </span>
+              <Input
+                type="number"
+                min={1}
+                step={1}
+                value={localAmount}
+                onChange={(e) => setLocalAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                onBlur={() => {
+                  const num = Number(localAmount);
+                  if (num > 0) {
+                    void handleSaveAmount(num);
+                  }
+                }}
+                className="h-10 border-amber-500/40 bg-amber-950/30 pl-8 text-right text-sm text-white placeholder:text-white/30 focus-visible:ring-amber-500/40"
+              />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                const num = Number(localAmount);
+                if (num > 0) {
+                  void handleSaveAmount(num);
+                }
+              }}
+              disabled={isSaving || !localAmount || Number(localAmount) <= 0}
+              className="h-10 bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs px-3"
+            >
+              {t("save_settings")}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-4 gap-1.5 pt-1">
+            {presets.map((val) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => handleSaveAmount(val)}
+                className={cn(
+                  "h-8 rounded-lg border text-xs font-semibold transition-colors",
+                  Number(localAmount) === val
+                    ? "border-amber-400 bg-amber-500/25 text-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.3)]"
+                    : "border-white/15 bg-black/35 text-white/70 hover:border-white/40 hover:bg-white/10",
+                )}
+              >
+                ฿{val}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
-function MainPage({ onGoTheme }: { onGoTheme: () => void }) {
+function MainPage({
+  onGoTheme,
+  roomId,
+  isHost,
+  allInMode,
+  maxAllInAmount,
+}: {
+  onGoTheme: () => void;
+  roomId?: string;
+  isHost?: boolean;
+  allInMode?: boolean;
+  maxAllInAmount?: number;
+}) {
   const locale = useLocale();
   const isTh = locale === "th";
 
   return (
-    <div className="mt-2 space-y-2">
+    <div className="mt-2 space-y-3">
       <LanguageRow />
       <SettingsRow
         icon={Palette}
         label={isTh ? "ธีม" : "Theme"}
         description={isTh ? "พื้นหลัง, โต๊ะ, ไพ่" : "Background, Table, Cards"}
         onClick={onGoTheme}
+      />
+      <HostRoomSettingsSection
+        roomId={roomId}
+        isHost={isHost}
+        allInMode={allInMode}
+        maxAllInAmount={maxAllInAmount}
       />
     </div>
   );
@@ -296,6 +489,10 @@ function ThemePage({
 
 export function TableSkinDialog({
   open,
+  roomId,
+  isHost,
+  allInMode,
+  maxAllInAmount,
   bgThemeId,
   tableThemeId,
   cardThemeId,
@@ -305,6 +502,10 @@ export function TableSkinDialog({
   onClose,
 }: {
   open: boolean;
+  roomId?: string;
+  isHost?: boolean;
+  allInMode?: boolean;
+  maxAllInAmount?: number;
   bgThemeId: BgThemeId;
   tableThemeId: TableThemeId;
   cardThemeId: CardThemeId;
@@ -346,7 +547,13 @@ export function TableSkinDialog({
         </DialogHeader>
 
         {page === "main" && (
-          <MainPage onGoTheme={() => setPage("theme")} />
+          <MainPage
+            onGoTheme={() => setPage("theme")}
+            roomId={roomId}
+            isHost={isHost}
+            allInMode={allInMode}
+            maxAllInAmount={maxAllInAmount}
+          />
         )}
 
         {page === "theme" && (

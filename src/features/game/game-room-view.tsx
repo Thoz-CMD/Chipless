@@ -107,6 +107,8 @@ export type GameRoomData = {
   };
   settings: {
     bigBlind: number;
+    allInMode?: boolean;
+    maxAllInAmount?: number;
   };
 };
 
@@ -1033,6 +1035,10 @@ export function GameRoomView({
 
       <TableSkinDialog
         open={isSkinDialogOpen}
+        roomId={room.id}
+        isHost={isHost}
+        allInMode={room.settings.allInMode}
+        maxAllInAmount={room.settings.maxAllInAmount}
         bgThemeId={bgThemeId}
         tableThemeId={tableThemeId}
         cardThemeId={cardThemeId}

@@ -106,7 +106,7 @@ function formatAmount(amount: number): string {
 }
 
 function formatAction(entry: HoldemActionLogEntry, t: (key: string) => string): string {
-  const actionKey = entry.action.toLowerCase();
+  const actionKey = entry.action.toLowerCase().replace(/\s+/g, "_");
   const translatedAction = t(actionKey);
   
   return entry.amount === undefined
@@ -233,7 +233,7 @@ export function GameTable({
     
     // Get the most recent action for each player
     currentRoundActions.forEach((entry) => {
-      const actionKey = entry.action.toLowerCase();
+      const actionKey = entry.action.toLowerCase().replace(/\s+/g, "_");
       const translatedAction = tActions(actionKey);
       
       lastActionByUid.set(entry.uid, translatedAction);

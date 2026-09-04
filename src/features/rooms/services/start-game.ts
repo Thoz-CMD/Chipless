@@ -93,6 +93,12 @@ export async function startGame(roomId: string): Promise<void> {
       players.length === 2
         ? (bigBlindPosition + 1) % players.length
         : (bigBlindPosition - 2 + players.length) % players.length;
+    const allInMode = settings?.allInMode === true;
+    const maxAllInAmount =
+      typeof settings?.maxAllInAmount === "number"
+        ? settings.maxAllInAmount
+        : undefined;
+
     const hand = createHoldemGameState({
       players: players.map((player, seatIndex) => ({
         uid: player.uid,
@@ -101,6 +107,7 @@ export async function startGame(roomId: string): Promise<void> {
       })),
       dealerPosition,
       bigBlind,
+      ...(allInMode ? { gameMode: "allin" as const, maxAllInAmount } : {}),
     });
 
     await update(ref(database), {

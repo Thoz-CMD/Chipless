@@ -28,6 +28,19 @@
     "big_blind_description": "จำนวนเงินที่ต้องจ่ายเพื่อเปิดและดูไพ่",
     "button": "สร้างห้อง"
   },
+  "room_settings": {
+    "title": "ตั้งค่าห้อง",
+    "host_settings": "การตั้งค่าห้อง (โฮสต์)",
+    "all_in_mode": "โหมดออลอิน",
+    "all_in_mode_description": "พรีฟลอบตาม/หมอบ → ฟลอบออลอิน (ไม่มี Turn/River)",
+    "max_all_in_amount": "วงเงินออลอินสูงสุด (บาท)",
+    "max_all_in_amount_description": "จำนวนเงินที่จะลงออลอินทันทีในรอบฟลอบ",
+    "save_settings": "บันทึก",
+    "settings_saved": "บันทึกการตั้งค่าห้องแล้ว",
+    "settings_save_error": "ไม่สามารถบันทึกการตั้งค่าได้",
+    "mode_active": "เปิดใช้งาน",
+    "mode_disabled": "ปิดใช้งาน"
+  },
   "join_room": {
     "title": "เข้าร่วมห้อง",
     "subtitle": "เลือกห้องที่รอผู้เล่น",
@@ -105,9 +118,10 @@
     "check_cancel_bet": "มีผู้เล่นเดิมพันเพิ่ม ยกเลิกการผ่านล่วงหน้า",
     "call_cancel": "ยกเลิกการตามล่วงหน้า",
     "call_active": "จะตาม {amount} เมื่อถึงตาคุณ",
-    "call_cancel_raised": "มีผู้เล่นเดิมพันเพิ่ม ยกเลิกการตามล่วงหน้า",
     "call_any_cancel": "ยกเลิกการตามทุกเดิมพันล่วงหน้า",
-    "call_any_active": "จะตามทุกเดิมพันเมื่อถึงตาคุณ"
+    "call_any_active": "จะตามทุกเดิมพันเมื่อถึงตาคุณ",
+    "all_in_active": "จะออลอิน {amount} เมื่อถึงตาคุณ",
+    "fold_active": "จะหมอบเมื่อถึงตาคุณ"
   },
   "profile": {
     "edit_profile": "แก้ไขโปรไฟล์",

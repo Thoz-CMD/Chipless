@@ -118,6 +118,12 @@ export async function startNextHand(roomId: string): Promise<void> {
         ? (nextIndex + 1) % players.length
         : (nextIndex - 2 + players.length) % players.length;
 
+    const allInMode = settings?.allInMode === true;
+    const maxAllInAmount =
+      typeof settings?.maxAllInAmount === "number"
+        ? settings.maxAllInAmount
+        : undefined;
+
     const nextHand = createHoldemGameState({
       players: players.map((player, seatIndex) => ({
         uid: player.uid,
@@ -126,6 +132,7 @@ export async function startNextHand(roomId: string): Promise<void> {
       })),
       dealerPosition,
       bigBlind,
+      ...(allInMode ? { gameMode: "allin" as const, maxAllInAmount } : {}),
     });
 
     const updates: Record<string, unknown> = {
