@@ -19,6 +19,10 @@ import { WinnerSelectDialog } from "@/features/game/winner-select-dialog";
 import { useTableSkin } from "@/features/game/use-table-skin";
 import { TableSkinDialog } from "@/features/game/table-skin-dialog";
 import {
+  WinnerCelebrationOverlay,
+  type WinnerCelebrationData,
+} from "@/features/game/winner-celebration-overlay";
+import {
   getActiveWinStreaks,
   getLatestExtinguishedWinStreak,
   type ExtinguishedWinStreak,
@@ -150,6 +154,8 @@ export function GameRoomView({
   >(null);
   const [winnerAmountAnimation, setWinnerAmountAnimation] =
     useState<WinnerAmountAnimation | null>(null);
+  const [winnerCelebration, setWinnerCelebration] =
+    useState<WinnerCelebrationData | null>(null);
   const [extinguishAnimation, setExtinguishAnimation] =
     useState<ExtinguishedWinStreak | null>(null);
   const observedLatestSettlementHandRef = useRef<number | null>(null);
@@ -311,8 +317,24 @@ export function GameRoomView({
       latestSettlementHandNumber !== null &&
       Object.keys(winnerAmountsByUid).length > 0
     ) {
+      const winnerNames = latestWinnerUids.map(
+        (uid) => latestSettlement?.playerResults[uid]?.displayName ?? "Winner",
+      );
+      const isCurrentUserWinner = latestWinnerUids.includes(currentUid);
+      const wonAmount = isCurrentUserWinner
+        ? winnerAmountsByUid[currentUid]
+        : Object.values(winnerAmountsByUid)[0];
+
       timeoutIds.push(
         window.setTimeout(() => {
+          setWinnerCelebration({
+            handNumber: latestSettlementHandNumber,
+            winnerNames,
+            totalPot: latestSettlement?.pot,
+            isCurrentUserWinner,
+            wonAmount,
+            currency: tCommon("currency"),
+          });
           setWinnerAmountAnimation({
             handNumber: latestSettlementHandNumber,
             amountsByUid: winnerAmountsByUid,
@@ -325,6 +347,13 @@ export function GameRoomView({
             current?.handNumber === latestSettlementHandNumber ? null : current,
           );
         }, 1800),
+      );
+      timeoutIds.push(
+        window.setTimeout(() => {
+          setWinnerCelebration((current) =>
+            current?.handNumber === latestSettlementHandNumber ? null : current,
+          );
+        }, 4200),
       );
     }
 
@@ -1006,6 +1035,11 @@ export function GameRoomView({
         onSelectTable={setTableThemeId}
         onSelectCard={setCardThemeId}
         onClose={() => setIsSkinDialogOpen(false)}
+      />
+
+      <WinnerCelebrationOverlay
+        data={winnerCelebration}
+        onComplete={() => setWinnerCelebration(null)}
       />
       </div>
     </div>
