@@ -737,7 +737,10 @@ export function TableSkinDialog({
         {page === "main" && (
           <MainPage
             onGoTheme={() => setPage("theme")}
-            onGoSeats={() => setPage("seats")}
+            onGoSeats={() => {
+              onClose();
+              onStartTableRearrange?.();
+            }}
             roomId={roomId}
             isHost={isHost}
             canArrangeSeats={canArrangeSeats}

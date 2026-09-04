@@ -292,8 +292,18 @@ export function GameTable({
     <section className="relative mx-auto h-full w-full">
       {/* Active rearrange banner on table */}
       {isArrangingSeats && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full border border-amber-400 bg-amber-950/90 px-3.5 py-1.5 text-xs text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.4)] backdrop-blur-md animate-in fade-in slide-in-from-top-2">
-          <span>{selectedSeatUid ? tSettings("arrange_seats_selected") : tSettings("arranging_on_table_banner")}</span>
+        <div
+          className={`absolute top-2 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs backdrop-blur-md animate-in fade-in slide-in-from-top-2 transition-colors duration-200 ${
+            selectedSeatUid
+              ? "border-amber-400 bg-amber-950/90 text-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.4)]"
+              : "border-sky-400/80 bg-sky-950/90 text-sky-200 shadow-[0_0_20px_rgba(56,189,248,0.4)]"
+          }`}
+        >
+          <span className="font-medium">
+            {selectedSeatUid
+              ? tSettings("arrange_seats_selected")
+              : tSettings("arranging_on_table_banner")}
+          </span>
           {onExitRearrangeSeats && (
             <button
               type="button"
@@ -301,7 +311,11 @@ export function GameTable({
                 setSelectedSeatUid(null);
                 onExitRearrangeSeats();
               }}
-              className="rounded-full bg-amber-400 px-2.5 py-0.5 text-[11px] font-bold text-black hover:bg-amber-300 transition-colors shadow-sm ml-1"
+              className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold text-black transition-colors shadow-sm ml-1 ${
+                selectedSeatUid
+                  ? "bg-amber-400 hover:bg-amber-300"
+                  : "bg-sky-400 hover:bg-sky-300"
+              }`}
             >
               {tSettings("done")}
             </button>
@@ -395,6 +409,7 @@ export function GameTable({
           seatCoordinates={seatCoordinatesByUid.get(player.uid) ??
               getSeatCoordinates(index, seatedPlayers.length)}
           isSelected={isArrangingSeats && selectedSeatUid === player.uid}
+          isArrangingSeats={isArrangingSeats}
           onClick={() => {
             if (isArrangingSeats) {
               if (!selectedSeatUid) {

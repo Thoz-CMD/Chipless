@@ -17,6 +17,7 @@ export function PlayerSeat({
   style,
   seatCoordinates,
   isSelected,
+  isArrangingSeats,
   isDragTarget,
   onClick,
 }: {
@@ -34,6 +35,7 @@ export function PlayerSeat({
   style: CSSProperties;
   seatCoordinates?: { x: number; y: number };
   isSelected?: boolean;
+  isArrangingSeats?: boolean;
   isDragTarget?: boolean;
   onClick?: () => void;
 }) {
@@ -106,14 +108,16 @@ export function PlayerSeat({
       style={style}
       title={title}
     >
-      <div className={`relative mx-auto w-fit transition-transform duration-150 ${isSelected ? "scale-110" : "group-hover:scale-105"}`}>
+      <div className={`relative mx-auto w-fit transition-transform duration-150 ${isSelected ? "scale-110" : isArrangingSeats ? "hover:scale-105" : "group-hover:scale-105"}`}>
         <div
           className={
             isSelected
-              ? "rounded-full ring-4 ring-amber-400/90 ring-offset-2 ring-offset-black shadow-[0_0_24px_rgba(245,158,11,0.85)] animate-pulse"
-              : isDragTarget
-                ? "rounded-full ring-2 ring-sky-400/90 ring-offset-2 ring-offset-black shadow-[0_0_20px_rgba(14,165,233,0.7)] scale-105"
-                : undefined
+              ? "rounded-full ring-4 ring-amber-400 ring-offset-2 ring-offset-black shadow-[0_0_24px_rgba(245,158,11,0.95)] animate-pulse"
+              : isArrangingSeats
+                ? "rounded-full ring-2 ring-sky-400 ring-offset-2 ring-offset-black shadow-[0_0_16px_rgba(56,189,248,0.75)] transition-all hover:ring-sky-300"
+                : isDragTarget
+                  ? "rounded-full ring-2 ring-sky-400/90 ring-offset-2 ring-offset-black shadow-[0_0_20px_rgba(14,165,233,0.7)] scale-105"
+                  : undefined
           }
         >
           <PlayerAvatar
