@@ -4,7 +4,6 @@ import { useState, useRef } from "react";
 import type { CSSProperties } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
-import { Check } from "lucide-react";
 
 import { CommunityCards } from "@/features/game/community-cards";
 import type {
@@ -300,10 +299,9 @@ export function GameTable({
               setSelectedSeatUid(null);
               onExitRearrangeSeats();
             }}
-            className="flex items-center gap-1.5 rounded-full border border-sky-400/80 bg-black/90 px-4 py-1.5 text-xs font-bold text-white shadow-[0_0_20px_rgba(56,189,248,0.35)] backdrop-blur-md hover:bg-white/15 active:scale-95 transition-all"
+            className="rounded-full border border-sky-400/80 bg-black/90 px-4 py-1.5 text-xs font-bold text-white shadow-[0_0_20px_rgba(56,189,248,0.35)] backdrop-blur-md hover:bg-white/15 active:scale-95 transition-all"
           >
-            <Check className="size-3.5 text-sky-400" />
-            <span>{tSettings("done")}</span>
+            {tSettings("done")}
           </button>
         </div>
       )}
