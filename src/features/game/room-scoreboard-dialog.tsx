@@ -287,15 +287,15 @@ export function RoomScoreboardDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[80vh] overflow-y-auto border-white/35 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.16)] top-[10%] translate-y-0">
-        <DialogHeader className="text-left">
-          <DialogTitle className="text-left">{t("title")}</DialogTitle>
-          <DialogDescription className="text-white/60 text-left">
+      <DialogContent className="max-h-[85vh] flex flex-col gap-0 p-0 overflow-hidden border-white/35 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.16)] top-[10%] translate-y-0 sm:max-w-lg">
+        <DialogHeader className="shrink-0 border-b border-white/10 px-5 pt-5 pb-3.5 pr-12 text-left">
+          <DialogTitle className="text-left text-base font-bold">{t("title")}</DialogTitle>
+          <DialogDescription className="text-white/60 text-left text-xs">
             {t("description")}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div className="flex items-center justify-between rounded-xl border border-white/30 bg-white/10 p-3">
             <div>
               <p className="text-xs text-white/60">{t("your_total_net")}</p>
@@ -446,7 +446,6 @@ export function RoomScoreboardDialog({
               )}
             </div>
           ) : null}
-        </div>
 
         <section className="mt-2 space-y-2">
           <h3 className="text-sm font-semibold text-white/70">{t("your_balance")}</h3>
@@ -716,6 +715,7 @@ export function RoomScoreboardDialog({
             </p>
           )}
         </section>
+        </div>
       </DialogContent>
     </Dialog>
   );

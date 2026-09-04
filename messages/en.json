@@ -102,6 +102,10 @@
     "check_fold_active": "Will Check/Fold when it's your turn",
     "check_cancel": "Cancelled Check",
     "check_active": "Will Check when it's your turn",
+    "check_cancel_bet": "A player placed a bet. Pre-check cancelled.",
+    "call_cancel": "Cancelled pre-call",
+    "call_active": "Will Call {amount} when it's your turn",
+    "call_cancel_raised": "A player raised the bet. Pre-call cancelled.",
     "call_any_cancel": "Cancelled Call Any",
     "call_any_active": "Will Call Any when it's your turn"
   },
@@ -198,6 +202,7 @@
     "no_history_description": "Your completed games will appear here",
     "view_details": "View Details",
     "top_player": "Top Player",
+    "your_total_net": "Your Total Net",
     "played_on": "Played on",
     "total_hands": "Total Hands"
   }

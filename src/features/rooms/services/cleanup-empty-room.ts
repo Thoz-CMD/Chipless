@@ -11,26 +11,42 @@ function wait(ms: number): Promise<void> {
 }
 
 export async function cleanupEmptyRoom(roomId: string): Promise<void> {
-  const database = getRealtimeDatabase();
+  try {
+    const database = getRealtimeDatabase();
 
-  await wait(emptyRoomCleanupDelayMs);
+    await wait(emptyRoomCleanupDelayMs);
 
-  const roomSnapshot = await get(ref(database, `rooms/${roomId}`));
-  const roomValue = roomSnapshot.val();
+    const roomSnapshot = await get(ref(database, `rooms/${roomId}`));
+    const roomValue = roomSnapshot.val();
 
-  if (!roomValue || typeof roomValue !== "object") {
-    return;
+    if (!roomValue || typeof roomValue !== "object") {
+      return;
+    }
+
+    const playersSnapshot = await get(ref(database, `roomPlayers/${roomId}`));
+
+    if (playersSnapshot.exists()) {
+      return;
+    }
+
+    try {
+      await remove(ref(database, `roomSecrets/${roomId}`));
+    } catch {
+      // Ignore if non-host client cannot delete secrets
+    }
+
+    try {
+      await remove(ref(database, `roomPlayerHistory/${roomId}`));
+    } catch {
+      // Ignore
+    }
+
+    try {
+      await remove(ref(database, `rooms/${roomId}`));
+    } catch {
+      // Ignore
+    }
+  } catch {
+    // Top-level catch to guarantee cleanupEmptyRoom never throws
   }
-
-  const room = roomValue as Record<string, unknown>;
-
-  const playersSnapshot = await get(ref(database, `roomPlayers/${roomId}`));
-
-  if (playersSnapshot.exists()) {
-    return;
-  }
-
-  await remove(ref(database, `roomSecrets/${roomId}`));
-  await remove(ref(database, `roomPlayerHistory/${roomId}`));
-  await remove(ref(database, `rooms/${roomId}`));
 }

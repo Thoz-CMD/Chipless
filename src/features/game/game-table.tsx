@@ -17,6 +17,8 @@ import {
   updatePlayerSeatOrder,
   UpdatePlayerSeatsError,
 } from "@/features/rooms/services/update-player-seats";
+import { TABLE_THEMES, DEFAULT_TABLE_ID } from "@/features/game/table-skins";
+import type { TableTheme, CardTheme } from "@/features/game/table-skins";
 
 function joinedAtValue(player: RoomPlayerListItem): number {
   return player.joinedAt ?? 0;
@@ -154,6 +156,8 @@ export function GameTable({
   extinguishAnimation,
   winnerAmountsByUid,
   onSelectPlayer,
+  tableTheme,
+  cardTheme,
 }: {
   roomId: string;
   players: RoomPlayerListItem[];
@@ -176,7 +180,10 @@ export function GameTable({
   extinguishAnimation?: ExtinguishedWinStreak | null;
   winnerAmountsByUid?: Record<string, number>;
   onSelectPlayer?: (player: RoomPlayerListItem) => void;
+  tableTheme?: TableTheme;
+  cardTheme?: CardTheme;
 }) {
+  const activeTableTheme: TableTheme = tableTheme ?? TABLE_THEMES[DEFAULT_TABLE_ID];
   const [draggingUid, setDraggingUid] = useState<string | null>(null);
   const [dragTargetUid, setDragTargetUid] = useState<string | null>(null);
   const t = useTranslations("game");
@@ -272,7 +279,7 @@ export function GameTable({
   }
 
   async function swapSeats(targetUid: string) {
-    if (!draggingUid || draggingUid === targetUid) {
+    if (!canArrangeSeats || !draggingUid || draggingUid === targetUid) {
       setDraggingUid(null);
       setDragTargetUid(null);
       return;
@@ -314,8 +321,23 @@ export function GameTable({
 
   return (
     <section className="relative mx-auto h-full w-full">
-      <div className="absolute top-[47%] left-1/2 h-[70%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/20 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),rgba(0,0,0,0.92)_62%)] shadow-[inset_0_0_42px_rgba(255,255,255,0.08),0_0_28px_rgba(255,255,255,0.08)]" />
-      <div className="absolute top-[47%] left-1/2 h-[58%] w-[44%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-black/35" />
+      {/* Outer table felt */}
+      <div
+        className="absolute top-[47%] left-1/2 h-[70%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-full border transition-all duration-500"
+        style={{
+          background: activeTableTheme.tableOuter,
+          borderColor: activeTableTheme.tableBorder,
+          boxShadow: activeTableTheme.tableGlow,
+        }}
+      />
+      {/* Inner table ring */}
+      <div
+        className="absolute top-[47%] left-1/2 h-[58%] w-[44%] -translate-x-1/2 -translate-y-1/2 rounded-full border transition-all duration-500"
+        style={{
+          background: activeTableTheme.tableInner,
+          borderColor: activeTableTheme.tableBorder,
+        }}
+      />
 
       {/* Center table display - Logo and Community Cards */}
       <div className="absolute top-[47%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
@@ -338,7 +360,10 @@ export function GameTable({
         ) : null}
         
         {/* Pot and Player Contribution Display */}
-        <div className="flex items-center gap-3 rounded-full border border-white/20 bg-black/60 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm">
+        <div
+          className="flex items-center gap-3 rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-500"
+          style={{ background: activeTableTheme.potBg }}
+        >
           <div className="flex items-center gap-1.5">
             <span className="text-white/70">พอท</span>
             <span className="text-white font-bold text-base">{potAmount.toLocaleString()}</span>
@@ -355,7 +380,7 @@ export function GameTable({
         </div>
         
         {/* Community Cards */}
-        <CommunityCards bettingRound={bettingRound} />
+        <CommunityCards bettingRound={bettingRound} cardTheme={cardTheme} />
         
         {/* Chipless Logo */}
         <div className="font-audiowide text-white text-xs font-bold tracking-wider opacity-80">

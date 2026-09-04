@@ -1,4 +1,4 @@
-import { ArrowLeft, Menu, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, Menu, Settings, Share2, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 
@@ -10,6 +10,7 @@ export function GameHeader({
   onLeaveRoom,
   isLeavingRoom = false,
   onOpenMenu,
+  onOpenSettings,
   leaderboard,
 }: {
   roomName: string;
@@ -19,6 +20,7 @@ export function GameHeader({
   onLeaveRoom?: () => void;
   isLeavingRoom?: boolean;
   onOpenMenu: () => void;
+  onOpenSettings?: () => void;
   leaderboard?: ReactNode;
 }) {
   const t = useTranslations("game");
@@ -66,6 +68,18 @@ export function GameHeader({
           >
             <Share2 className="size-4" aria-hidden="true" />
           </button>
+          {onOpenSettings ? (
+            <button
+              type="button"
+              id="settings-button"
+              onClick={onOpenSettings}
+              className="grid size-9 shrink-0 place-items-center rounded text-white hover:bg-white/10 focus:ring-2 focus:ring-white/60 focus:outline-none"
+              aria-label="ตั้งค่า"
+              title="ตั้งค่า"
+            >
+              <Settings className="size-4" aria-hidden="true" />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onOpenMenu}

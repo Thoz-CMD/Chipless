@@ -190,7 +190,9 @@ export async function subscribeToWaitingRooms(
             if (playerCount === 0 && !pendingEmptyRoomCleanupIds.has(roomId)) {
               pendingEmptyRoomCleanupIds.add(roomId);
               void cleanupEmptyRoom(roomId)
-                .catch(handleError)
+                .catch(() => {
+                  // Ignore cleanup errors in background so it never disrupts room list
+                })
                 .finally(() => {
                   pendingEmptyRoomCleanupIds.delete(roomId);
                 });

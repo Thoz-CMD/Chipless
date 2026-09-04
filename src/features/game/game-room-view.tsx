@@ -16,6 +16,8 @@ import { RoomScoreboardDialog } from "@/features/game/room-scoreboard-dialog";
 import type { HoldemGameState } from "@/features/game/logic/texas-holdem";
 import { useGameSoundEffects } from "@/features/game/use-game-sound-effects";
 import { WinnerSelectDialog } from "@/features/game/winner-select-dialog";
+import { useTableSkin } from "@/features/game/use-table-skin";
+import { TableSkinDialog } from "@/features/game/table-skin-dialog";
 import {
   getActiveWinStreaks,
   getLatestExtinguishedWinStreak,
@@ -129,6 +131,18 @@ export function GameRoomView({
   const [isKicking, setIsKicking] = useState(false);
   const [isTransferringHost, setIsTransferringHost] = useState(false);
   const [isLeaderboardVisible, setIsLeaderboardVisible] = useState(false);
+  const [isSkinDialogOpen, setIsSkinDialogOpen] = useState(false);
+  const {
+    bgTheme,
+    tableTheme,
+    cardTheme,
+    bgThemeId,
+    tableThemeId,
+    cardThemeId,
+    setBgThemeId,
+    setTableThemeId,
+    setCardThemeId,
+  } = useTableSkin();
   const [selectedPlayerForSummary, setSelectedPlayerForSummary] =
     useState<RoomPlayerListItem | null>(null);
   const [onFireAnimationHandNumber, setOnFireAnimationHandNumber] = useState<
@@ -150,6 +164,24 @@ export function GameRoomView({
   const latestSettlement = Object.values(settlements).sort(
     (first, second) => second.handNumber - first.handNumber,
   )[0];
+  const latestSettlementWinnerNet = useMemo(() => {
+    if (!latestSettlement) {
+      return 0;
+    }
+
+    const winnerUids = getSettlementWinnerUids(latestSettlement);
+    if (winnerUids.length === 0) {
+      return latestSettlement.pot;
+    }
+
+    const totalNet = winnerUids.reduce((sum, uid) => {
+      const playerResult = latestSettlement.playerResults?.[uid];
+      const net = playerResult?.net ?? 0;
+      return sum + Math.max(0, net);
+    }, 0);
+
+    return totalNet > 0 ? totalNet : latestSettlement.pot;
+  }, [latestSettlement]);
   const recentlySettledWinnerName =
     latestSettlement?.handNumber === handNumber - 1 &&
     (holdemGameState?.actionLog?.length ?? 0) === 0
@@ -577,7 +609,7 @@ export function GameRoomView({
   }
 
   return (
-    <div className="fixed inset-0 flex justify-center">
+    <div className="fixed inset-0 flex justify-center transition-all duration-500" style={{ background: bgTheme.gradient }}>
       <div className="w-full max-w-md md:max-w-none lg:max-w-lg xl:max-w-xl flex flex-col overflow-hidden p-4 md:p-8 lg:p-4">
       {shouldShowOnFireOverlay ? (
         <div
@@ -611,6 +643,7 @@ export function GameRoomView({
           onLeaveRoom={handleOpenLeaveRoomDialog}
           isLeavingRoom={isLeavingRoom}
           onOpenMenu={() => setIsScoreboardOpen(true)}
+          onOpenSettings={() => setIsSkinDialogOpen(true)}
           leaderboard={
             <RoomLeaderboardPanel
               players={players}
@@ -634,7 +667,10 @@ export function GameRoomView({
             players={players}
             currentUid={currentUid}
             hostUid={room.hostUid}
-            canArrangeSeats={isHost}
+            canArrangeSeats={
+              isHost &&
+              (!isGameStarted || holdemGameState?.bettingRound === "summary")
+            }
             potAmount={holdemGameState?.pot ?? room.settings.bigBlind}
             currentPlayerContribution={
               holdemGameState?.players.find((player) => player.uid === currentUid)
@@ -662,6 +698,8 @@ export function GameRoomView({
             extinguishAnimation={extinguishAnimation}
             winnerAmountsByUid={winnerAmountAnimation?.amountsByUid}
             onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
+            tableTheme={tableTheme}
+            cardTheme={cardTheme}
           />
         </div>
       </div>
@@ -677,7 +715,7 @@ export function GameRoomView({
                     <p className="text-sm font-semibold text-emerald-300">
                       {t("hand_summary_winner", {
                         winnerName: latestSettlement.winnerName,
-                        amount: latestSettlement.pot.toLocaleString("en-US"),
+                        amount: latestSettlementWinnerNet.toLocaleString("en-US"),
                         currency: tCommon("currency"),
                       })}
                     </p>
@@ -958,6 +996,17 @@ export function GameRoomView({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <TableSkinDialog
+        open={isSkinDialogOpen}
+        bgThemeId={bgThemeId}
+        tableThemeId={tableThemeId}
+        cardThemeId={cardThemeId}
+        onSelectBg={setBgThemeId}
+        onSelectTable={setTableThemeId}
+        onSelectCard={setCardThemeId}
+        onClose={() => setIsSkinDialogOpen(false)}
+      />
       </div>
     </div>
   );

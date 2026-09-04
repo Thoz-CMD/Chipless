@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
-import { History, ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { History } from "lucide-react";
 import { subscribeGameHistory } from "./services/subscribe-game-history";
 import { HistoryRoomCard } from "./history-room-card";
 import type { GameHistoryListItem } from "./services/subscribe-game-history";
@@ -22,6 +21,7 @@ export function HistoryView() {
   const tCommon = useTranslations("common");
 
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
+  const [currentUid, setCurrentUid] = useState<string | null>(null);
 
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -42,6 +42,8 @@ export function HistoryView() {
           });
           return;
         }
+
+        setCurrentUid(currentUser.uid);
 
         const unsubscribe = subscribeGameHistory(currentUser.uid, (history) => {
           setLoadState({ status: "ready", history });
@@ -73,10 +75,6 @@ export function HistoryView() {
     router.push(`/history/${historyKey}`);
   }
 
-  function handleBackHome() {
-    router.push("/");
-  }
-
   if (loadState.status === "loading") {
     return (
       <div className="flex flex-col items-center justify-center py-12">
@@ -88,17 +86,9 @@ export function HistoryView() {
   if (loadState.status === "error") {
     return (
       <div className="flex flex-col items-center justify-center py-12">
-        <div className="mb-4 text-center text-neutral-400">
+        <div className="text-center text-neutral-400">
           {loadState.message}
         </div>
-        <Button
-          onClick={handleBackHome}
-          variant="outline"
-          className="border-neutral-700 bg-neutral-900 text-white hover:bg-neutral-800"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {tCommon("back_to_home")}
-        </Button>
       </div>
     );
   }
@@ -110,44 +100,23 @@ export function HistoryView() {
         <div className="mb-2 text-center text-neutral-400">
           {t("no_history")}
         </div>
-        <p className="mb-6 text-center text-sm text-neutral-500">
+        <p className="text-center text-sm text-neutral-500">
           {t("no_history_description")}
         </p>
-        <Button
-          onClick={handleBackHome}
-          variant="outline"
-          className="border-neutral-700 bg-neutral-900 text-white hover:bg-neutral-800"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {tCommon("back_to_home")}
-        </Button>
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="mb-4">
-        <Button
-          onClick={handleBackHome}
-          variant="outline"
-          size="sm"
-          className="border-neutral-700 bg-neutral-900 text-white hover:bg-neutral-800"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {tCommon("back_to_home")}
-        </Button>
-      </div>
-
-      <div className="space-y-4">
-        {loadState.history.map((historyItem) => (
-          <HistoryRoomCard
-            key={historyItem.historyKey}
-            history={historyItem}
-            onViewDetails={handleViewDetails}
-          />
-        ))}
-      </div>
+    <div className="space-y-4">
+      {loadState.history.map((historyItem) => (
+        <HistoryRoomCard
+          key={historyItem.historyKey}
+          history={historyItem}
+          currentUid={currentUid ?? undefined}
+          onViewDetails={handleViewDetails}
+        />
+      ))}
     </div>
   );
 }

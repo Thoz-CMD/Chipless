@@ -26,7 +26,6 @@ type HistoryDetailViewProps = {
 
 export function HistoryDetailView({ historyKey }: HistoryDetailViewProps) {
   const router = useRouter();
-  const t = useTranslations("history");
   const tCommon = useTranslations("common");
 
   const [loadState, setLoadState] = useState<LoadState>({ status: "loading" });
@@ -90,10 +89,6 @@ export function HistoryDetailView({ historyKey }: HistoryDetailViewProps) {
     loadHistoryDetail();
   }, [historyKey]);
 
-  function handleBack() {
-    router.push("/history");
-  }
-
   function handleCloseScoreboard() {
     setIsScoreboardOpen(false);
     router.push("/history");
@@ -114,12 +109,12 @@ export function HistoryDetailView({ historyKey }: HistoryDetailViewProps) {
           {loadState.message}
         </div>
         <Button
-          onClick={handleBack}
+          onClick={() => router.push("/")}
           variant="outline"
           className="border-neutral-700 bg-neutral-900 text-white hover:bg-neutral-800"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          {t("title")}
+          {tCommon("back_to_home")}
         </Button>
       </div>
     );
@@ -151,18 +146,6 @@ export function HistoryDetailView({ historyKey }: HistoryDetailViewProps) {
 
   return (
     <div>
-      <div className="mb-4">
-        <Button
-          onClick={handleBack}
-          variant="outline"
-          size="sm"
-          className="border-neutral-700 bg-neutral-900 text-white hover:bg-neutral-800"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {t("title")}
-        </Button>
-      </div>
-
       <RoomScoreboardDialog
         open={isScoreboardOpen}
         onOpenChange={handleCloseScoreboard}

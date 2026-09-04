@@ -7,11 +7,20 @@ import type { GameHistoryListItem } from "./services/subscribe-game-history";
 
 type HistoryRoomCardProps = {
   history: GameHistoryListItem;
+  currentUid?: string;
   onViewDetails: (historyKey: string) => void;
 };
 
+function formatAmount(amount: number): string {
+  const absoluteAmount = Math.abs(amount).toLocaleString("en-US");
+  if (amount > 0) return `+${absoluteAmount}`;
+  if (amount < 0) return `-${absoluteAmount}`;
+  return "0";
+}
+
 export function HistoryRoomCard({
   history,
+  currentUid,
   onViewDetails,
 }: HistoryRoomCardProps) {
   const t = useTranslations("history");
@@ -19,7 +28,13 @@ export function HistoryRoomCard({
 
   const playersCount = Object.keys(history.players).length;
   const handsCount = history.finalStats.totalHands;
-  const topPlayer = history.finalStats.topPlayer;
+
+  const userNet = currentUid && history.settlements
+    ? Object.values(history.settlements).reduce((total, settlement) => {
+        const result = settlement.playerResults?.[currentUid];
+        return total + (result?.net ?? 0);
+      }, 0)
+    : 0;
 
   const endedDate = new Date(history.endedAt);
   const formattedDate = endedDate.toLocaleDateString(undefined, {
@@ -59,17 +74,20 @@ export function HistoryRoomCard({
         </div>
       </div>
 
-      {topPlayer && (
-        <div className="mb-4 rounded bg-neutral-800 p-2 text-sm">
-          <span className="text-neutral-400">{t("top_player")}: </span>
-          <span className="font-medium text-white">
-            {history.players[topPlayer.uid]?.displayName ?? topPlayer.name}
-          </span>
-          <span className="ml-2 text-neutral-400">
-            (+{topPlayer.netGain.toLocaleString("en-US")} {" currency"})
-          </span>
-        </div>
-      )}
+      <div className="mb-4 flex items-center justify-between rounded bg-neutral-800 p-2.5 text-sm">
+        <span className="text-neutral-400">{t("your_total_net")}:</span>
+        <span
+          className={`font-bold tabular-nums ${
+            userNet > 0
+              ? "text-emerald-400"
+              : userNet < 0
+                ? "text-rose-400"
+                : "text-neutral-300"
+          }`}
+        >
+          {formatAmount(userNet)} {tCommon("currency")}
+        </span>
+      </div>
 
       <Button
         onClick={() => onViewDetails(history.historyKey)}

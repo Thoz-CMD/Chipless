@@ -1,7 +1,7 @@
 "use client";
 
 import { Minus, Plus } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
@@ -117,7 +117,10 @@ export function ActionPanel({
   const tCommon = useTranslations("common");
   const tActions = useTranslations("actions");
   const [isSubmittingAction, setIsSubmittingAction] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"check-fold" | "check" | "call-any" | null>(null);
+  const [pendingAction, setPendingAction] = useState<
+    "check-fold" | "check" | "call" | "call-any" | null
+  >(null);
+  const [pendingCallAmount, setPendingCallAmount] = useState<number>(0);
   const gameState = initialGameState;
   const currentPosition = gameState.players.findIndex(
     (player) => player.uid === currentUid,
@@ -127,6 +130,11 @@ export function ActionPanel({
   const isCurrentPlayerTurn = currentPosition === gameState.currentTurn;
   const amountToCall = getAmountToCall(gameState, currentPosition);
   const availableActions = getAvailableActions(gameState, currentPosition);
+  const isPreflopNonBlind =
+    gameState.bettingRound === "preflop" &&
+    currentPosition !== gameState.bigBlindPosition &&
+    currentPosition !== gameState.smallBlindPosition;
+  const preflopCallAmount = amountToCall > 0 ? amountToCall : gameState.bigBlind;
   const aggressiveAction = availableActions.find((action) =>
     isAggressiveAction(action),
   );
@@ -152,37 +160,6 @@ export function ActionPanel({
     maximumActionAmount,
   );
 
-  const presets = [
-    {
-      label: `${t("min")} (${formatAmount(minimumActionAmount)})`,
-      value: minimumActionAmount,
-    },
-    {
-      label: `\u00d72 (${formatAmount(clampBet(minimumActionAmount * 2, minimumActionAmount, maximumActionAmount))})`,
-      value: clampBet(
-        minimumActionAmount * 2,
-        minimumActionAmount,
-        maximumActionAmount,
-      ),
-    },
-    {
-      label: `\u00d72.5 (${formatAmount(clampBet(minimumActionAmount * 2.5, minimumActionAmount, maximumActionAmount))})`,
-      value: clampBet(
-        minimumActionAmount * 2.5,
-        minimumActionAmount,
-        maximumActionAmount,
-      ),
-    },
-    {
-      label: `\u00d73 (${formatAmount(clampBet(minimumActionAmount * 3, minimumActionAmount, maximumActionAmount))})`,
-      value: clampBet(
-        minimumActionAmount * 3,
-        minimumActionAmount,
-        maximumActionAmount,
-      ),
-    },
-  ];
-
   const sliderProgress =
     maximumActionAmount === minimumActionAmount
       ? 100
@@ -190,56 +167,20 @@ export function ActionPanel({
           (maximumActionAmount - minimumActionAmount)) *
         100;
 
-  // Auto-execute pending action when it's player's turn
-  useEffect(() => {
-    if (isCurrentPlayerTurn && pendingAction && !isSubmittingAction && !currentPlayer?.hasFolded) {
-      const action = pendingAction;
-      
-      // Execute the pending action based on type
-      if (action === "check-fold") {
-        // Check/Fold: Check if no one bet, Fold if someone bet
-        if (availableActions.some(a => a.type === "check")) {
-          setPendingAction(null);
-          void runAction({ type: "check", label: "Check" });
-        } else {
-          setPendingAction(null);
-          void runAction({ type: "fold", label: "Fold" });
-        }
-      } else if (action === "check") {
-        // Check: Only check if still available, otherwise cancel
-        if (availableActions.some(a => a.type === "check")) {
-          setPendingAction(null);
-          void runAction({ type: "check", label: "Check" });
-        } else {
-          // Someone bet, cancel the pre-action
-          setPendingAction(null);
-          toast.info("มีผู้เล่นเดิมพันเพิ่ม ยกเลิกการผ่านล่วงหน้า");
-        }
-      } else if (action === "call-any") {
-        // Call Any: Always call whatever amount
-        const callAction = availableActions.find(a => a.type === "call");
-        if (callAction) {
-          setPendingAction(null);
-          void runAction(callAction);
-        } else {
-          // If call not available, try to bet instead
-          const betAction = availableActions.find(a => a.type === "bet");
-          if (betAction) {
-            setPendingAction(null);
-            void runAction(betAction);
-          } else {
-            // If neither available, cancel
-            setPendingAction(null);
-          }
-        }
-      }
-    }
-  }, [isCurrentPlayerTurn, pendingAction, isSubmittingAction, currentPlayer?.hasFolded, availableActions]);
+  const [prevRound, setPrevRound] = useState(gameState.bettingRound);
+  if (gameState.bettingRound !== prevRound) {
+    setPrevRound(gameState.bettingRound);
+    setPendingAction(null);
+    setPendingCallAmount(0);
+  }
 
   async function runAction(action: AvailableAction): Promise<void> {
     if (isSubmittingAction) {
       return;
     }
+
+    setPendingAction(null);
+    setPendingCallAmount(0);
 
     let holdemAction: HoldemAction;
 
@@ -274,6 +215,93 @@ export function ActionPanel({
       setIsSubmittingAction(false);
     }
   }
+
+  const runActionRef = useRef(runAction);
+  useEffect(() => {
+    runActionRef.current = runAction;
+  });
+
+  // Cancel pending check if someone places a bet before our turn
+  useEffect(() => {
+    if (pendingAction === "check" && amountToCall > 0) {
+      queueMicrotask(() => {
+        setPendingAction(null);
+      });
+    }
+  }, [pendingAction, amountToCall]);
+
+  // Cancel pending call if someone raises the bet above our pending amount before our turn
+  useEffect(() => {
+    if (
+      pendingAction === "call" &&
+      amountToCall > pendingCallAmount &&
+      pendingCallAmount > 0
+    ) {
+      queueMicrotask(() => {
+        setPendingAction(null);
+        setPendingCallAmount(0);
+      });
+    }
+  }, [pendingAction, amountToCall, pendingCallAmount]);
+
+  // Auto-execute pending action when it's player's turn
+  useEffect(() => {
+    if (
+      isCurrentPlayerTurn &&
+      pendingAction &&
+      !isSubmittingAction &&
+      !currentPlayer?.hasFolded
+    ) {
+      const action = pendingAction;
+
+      setTimeout(() => {
+        if (action === "check-fold") {
+          // Check/Fold: Check if no one bet, Fold if someone bet
+          if (availableActions.some((a) => a.type === "check")) {
+            void runActionRef.current({ type: "check", label: "Check" });
+          } else {
+            void runActionRef.current({ type: "fold", label: "Fold" });
+          }
+        } else if (action === "check") {
+          // Check: Only check if still available, otherwise cancel
+          if (availableActions.some((a) => a.type === "check")) {
+            void runActionRef.current({ type: "check", label: "Check" });
+          } else {
+            // Someone bet, cancel the pre-action
+            setPendingAction(null);
+          }
+        } else if (action === "call") {
+          const callAction = availableActions.find((a) => a.type === "call");
+          if (callAction && callAction.amount <= pendingCallAmount) {
+            void runActionRef.current(callAction);
+          } else if (availableActions.some((a) => a.type === "check")) {
+            void runActionRef.current({ type: "check", label: "Check" });
+          } else {
+            setPendingAction(null);
+            setPendingCallAmount(0);
+          }
+        } else if (action === "call-any") {
+          // Call Any: Call if someone bet, or Check if nobody bet
+          const callAction = availableActions.find((a) => a.type === "call");
+          const checkAction = availableActions.find((a) => a.type === "check");
+          if (callAction) {
+            void runActionRef.current(callAction);
+          } else if (checkAction) {
+            void runActionRef.current(checkAction);
+          } else {
+            setPendingAction(null);
+          }
+        }
+      }, 0);
+    }
+  }, [
+    isCurrentPlayerTurn,
+    pendingAction,
+    isSubmittingAction,
+    currentPlayer?.hasFolded,
+    availableActions,
+    pendingCallAmount,
+  ]);
 
   return (
     <section className="rounded-xl border border-white/30 bg-black/70 p-3 shadow-[0_0_24px_rgba(255,255,255,0.08)]">
@@ -346,13 +374,7 @@ export function ActionPanel({
             <button
               type="button"
               onClick={() => {
-                if (pendingAction === "check-fold") {
-                  setPendingAction(null);
-                  toast.info(tActions("check_fold_cancel"));
-                } else {
-                  setPendingAction("check-fold");
-                  toast.info(tActions("check_fold_active"));
-                }
+                setPendingAction((prev) => (prev === "check-fold" ? null : "check-fold"));
               }}
               disabled={isSubmittingAction}
               className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] disabled:opacity-35 ${
@@ -362,37 +384,51 @@ export function ActionPanel({
               {tActions("check_fold")}
             </button>
 
-            {/* Check Button */}
-            <button
-              type="button"
-              onClick={() => {
-                if (pendingAction === "check") {
-                  setPendingAction(null);
-                  toast.info(tActions("check_cancel"));
-                } else {
-                  setPendingAction("check");
-                  toast.info(tActions("check_active"));
-                }
-              }}
-              disabled={isSubmittingAction}
-              className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] disabled:opacity-35 ${
-                pendingAction === "check" ? 'border-yellow-500/60 bg-yellow-500/20' : 'border-white/35 bg-white/15'
-              }`}
-            >
-              {tActions("check")}
-            </button>
+            {/* Middle button: In preflop for non-BB/SB: "ตาม [amount]" (e.g. "ตาม 2"), else "ผ่าน" */}
+            {isPreflopNonBlind ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (pendingAction === "call") {
+                    setPendingAction(null);
+                    setPendingCallAmount(0);
+                  } else {
+                    setPendingAction("call");
+                    setPendingCallAmount(preflopCallAmount);
+                  }
+                }}
+                disabled={isSubmittingAction}
+                className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] disabled:opacity-35 ${
+                  pendingAction === "call"
+                    ? "border-yellow-500/60 bg-yellow-500/20"
+                    : "border-white/35 bg-white/15"
+                }`}
+              >
+                {`${tActions("call")} ${formatAmount(preflopCallAmount)}`}
+              </button>
+            ) : (
+              /* Check Button */
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingAction((prev) => (prev === "check" ? null : "check"));
+                }}
+                disabled={isSubmittingAction}
+                className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] disabled:opacity-35 ${
+                  pendingAction === "check"
+                    ? "border-yellow-500/60 bg-yellow-500/20"
+                    : "border-white/35 bg-white/15"
+                }`}
+              >
+                {tActions("check")}
+              </button>
+            )}
 
             {/* Call Any Button */}
             <button
               type="button"
               onClick={() => {
-                if (pendingAction === "call-any") {
-                  setPendingAction(null);
-                  toast.info(tActions("call_any_cancel"));
-                } else {
-                  setPendingAction("call-any");
-                  toast.info(tActions("call_any_active"));
-                }
+                setPendingAction((prev) => (prev === "call-any" ? null : "call-any"));
               }}
               disabled={isSubmittingAction}
               className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] disabled:opacity-35 ${
@@ -405,38 +441,45 @@ export function ActionPanel({
         )}
 
         {/* Regular action buttons for current player's turn */}
-        {isCurrentPlayerTurn && availableActions.map((action) => (
-          <button
-            key={action.type}
-            type="button"
-            onClick={() => {
-              void runAction(action);
-            }}
-            disabled={
-              isSubmittingAction ||
-              (isAggressiveAction(action) &&
-                (maxAffordableActionAmount < minimumActionAmount ||
-                  getAggressiveActionCost({
-                    action,
-                    amount: getAggressiveActionAmount(
+        {isCurrentPlayerTurn && availableActions.map((action) => {
+          const isBetOrRaise = action.type === "bet" || action.type === "raise";
+          return (
+            <button
+              key={action.type}
+              type="button"
+              onClick={() => {
+                void runAction(action);
+              }}
+              disabled={
+                isSubmittingAction ||
+                (isAggressiveAction(action) &&
+                  (maxAffordableActionAmount < minimumActionAmount ||
+                    getAggressiveActionCost({
                       action,
-                      currentBet,
-                      maximumActionAmount,
-                    ),
-                    amountToCall,
-                    currentBet: gameState.currentBet,
-                  }) > (currentPlayer?.stack ?? 0)))
-            }
-            className="h-9 flex-1 min-w-20 rounded-lg border border-white/35 bg-white/15 px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)]"
-          >
-            {getActionButtonLabel({
-              action,
-              betAmount: currentBet,
-              maxAmount: maximumActionAmount,
-              t: tActions,
-            })}
-          </button>
-        ))}
+                      amount: getAggressiveActionAmount(
+                        action,
+                        currentBet,
+                        maximumActionAmount,
+                      ),
+                      amountToCall,
+                      currentBet: gameState.currentBet,
+                    }) > (currentPlayer?.stack ?? 0)))
+              }
+              className={`h-9 flex-1 min-w-20 rounded-lg border px-1 text-xs font-semibold transition-all duration-150 disabled:opacity-35 ${
+                isBetOrRaise
+                  ? "border-sky-400/70 bg-sky-500/30 text-sky-100 shadow-[inset_0_0_14px_rgba(14,165,233,0.3),0_0_12px_rgba(14,165,233,0.25)] hover:border-sky-300 hover:bg-sky-500/40"
+                  : "border-white/35 bg-white/15 text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] hover:border-white/50 hover:bg-white/25"
+              }`}
+            >
+              {getActionButtonLabel({
+                action,
+                betAmount: currentBet,
+                maxAmount: maximumActionAmount,
+                t: tActions,
+              })}
+            </button>
+          );
+        })}
       </div>
 
       <div className="mt-3 flex items-center justify-between text-xs text-white/45">
