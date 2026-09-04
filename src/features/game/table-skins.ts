@@ -143,16 +143,16 @@ export const TABLE_THEMES: Record<TableThemeId, TableTheme> = {
   },
 };
 
-export const DEFAULT_TABLE_ID: TableThemeId = "classic";
+export const DEFAULT_TABLE_ID: TableThemeId = "charcoal";
 export const TABLE_STORAGE_KEY = "chipless_table_theme";
 export const TABLE_ORDER: TableThemeId[] = [
-  "classic", "midnight", "vegas", "royal", "neon", "charcoal",
+  "charcoal", "classic", "midnight", "vegas", "royal", "neon",
 ];
 
 
 // ─── Card Themes ──────────────────────────────────────────────────────────────
 
-export type CardThemeId = "classic" | "black" | "crimson" | "gold" | "emerald" | "neon";
+export type CardThemeId = "black" | "classic" | "crimson" | "gold" | "emerald" | "neon";
 
 export type CardTheme = {
   id: CardThemeId;
@@ -167,18 +167,6 @@ export type CardTheme = {
 };
 
 export const CARD_THEMES: Record<CardThemeId, CardTheme> = {
-  classic: {
-    id: "classic",
-    name: "Classic",
-    previewColor: "#14145a",
-    backBg: "rgb(20,20,90)",
-    backBorder: "rgba(150,30,30,0.9)",
-    backPattern:
-      "repeating-linear-gradient(45deg,rgba(150,30,30,0.35) 0px,rgba(150,30,30,0.35) 2px,transparent 2px,transparent 8px)",
-    frontBg: "#ffffff",
-    frontText: "#000000",
-    frontBorder: "#000000",
-  },
   black: {
     id: "black",
     name: "Black",
@@ -187,6 +175,18 @@ export const CARD_THEMES: Record<CardThemeId, CardTheme> = {
     backBorder: "rgba(255,255,255,0.25)",
     backPattern:
       "repeating-linear-gradient(45deg,rgba(255,255,255,0.07) 0px,rgba(255,255,255,0.07) 1px,transparent 1px,transparent 7px),repeating-linear-gradient(-45deg,rgba(255,255,255,0.07) 0px,rgba(255,255,255,0.07) 1px,transparent 1px,transparent 7px)",
+    frontBg: "#ffffff",
+    frontText: "#000000",
+    frontBorder: "#000000",
+  },
+  classic: {
+    id: "classic",
+    name: "Classic",
+    previewColor: "#14145a",
+    backBg: "rgb(20,20,90)",
+    backBorder: "rgba(150,30,30,0.9)",
+    backPattern:
+      "repeating-linear-gradient(45deg,rgba(150,30,30,0.35) 0px,rgba(150,30,30,0.35) 2px,transparent 2px,transparent 8px)",
     frontBg: "#ffffff",
     frontText: "#000000",
     frontBorder: "#000000",
@@ -241,6 +241,6 @@ export const CARD_THEMES: Record<CardThemeId, CardTheme> = {
   },
 };
 
-export const DEFAULT_CARD_ID: CardThemeId = "classic";
+export const DEFAULT_CARD_ID: CardThemeId = "black";
 export const CARD_STORAGE_KEY = "chipless_card_theme";
-export const CARD_ORDER: CardThemeId[] = ["classic", "black", "crimson", "gold", "emerald", "neon"];
+export const CARD_ORDER: CardThemeId[] = ["black", "classic", "crimson", "gold", "emerald", "neon"];
