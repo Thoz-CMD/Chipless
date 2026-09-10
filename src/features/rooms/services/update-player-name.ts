@@ -1,5 +1,5 @@
 import { FirebaseError } from "firebase/app";
-import { get, ref, serverTimestamp, update } from "firebase/database";
+import { get, ref, update } from "firebase/database";
 
 import { signInWithAnonymousAccount } from "@/features/auth/anonymous-auth";
 import {
@@ -98,27 +98,25 @@ export async function updatePlayerName(
     }
 
     const playerPath = `roomPlayers/${roomId}/${uid}`;
-    const updates =
-      currentPlayer.joinedAt === undefined
-        ? {
-            [playerPath]: {
-              uid,
-              displayName: values.displayName,
-              ...(values.photoUrl ? { photoUrl: values.photoUrl } : {}),
-              role: currentPlayer.role,
-              joinedAt: serverTimestamp(),
-              online: true,
-            },
-          }
-        : {
-            [`${playerPath}/displayName`]: values.displayName,
-            [`${playerPath}/online`]: true,
-            ...(values.photoUrl
-              ? { [`${playerPath}/photoUrl`]: values.photoUrl }
-              : {}),
-          };
-
-    await update(ref(database), updates);
+    if (currentPlayer.joinedAt === undefined) {
+      await update(ref(database, playerPath), {
+        uid,
+        displayName: values.displayName,
+        ...(values.photoUrl ? { photoUrl: values.photoUrl } : {}),
+        role: currentPlayer.role,
+        joinedAt: Date.now(),
+        online: true,
+      });
+    } else {
+      const updates: Record<string, unknown> = {
+        displayName: values.displayName,
+        online: true,
+      };
+      if (values.photoUrl) {
+        updates.photoUrl = values.photoUrl;
+      }
+      await update(ref(database, playerPath), updates);
+    }
   } catch (error) {
     if (error instanceof UpdatePlayerNameError) {
       throw error;

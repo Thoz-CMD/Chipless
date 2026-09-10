@@ -1,5 +1,5 @@
 import { FirebaseError } from "firebase/app";
-import { get, ref, serverTimestamp, update } from "firebase/database";
+import { get, ref, update } from "firebase/database";
 
 import {
   applyHoldemAction,
@@ -32,10 +32,12 @@ export async function submitGameAction(
     }
 
     const database = getRealtimeDatabase();
-    const handSnapshot = await get(
-      ref(database, `rooms/${roomId}/gameState/hand`),
-    );
+    const [handSnapshot, roomSnapshot] = await Promise.all([
+      get(ref(database, `rooms/${roomId}/gameState/hand`)),
+      get(ref(database, `rooms/${roomId}`)),
+    ]);
     const handValue: unknown = handSnapshot.val();
+    const roomValue: unknown = roomSnapshot.val();
 
     if (!isHoldemGameState(handValue)) {
       throw new SubmitGameActionError("Game hand state is not available.", {
@@ -53,10 +55,8 @@ export async function submitGameAction(
 
     const nextHandState = applyHoldemAction(handValue, action);
 
-    await update(ref(database), {
-      [`rooms/${roomId}/gameState/hand`]: nextHandState,
-      [`rooms/${roomId}/updatedAt`]: serverTimestamp(),
-    });
+    await update(ref(database, `rooms/${roomId}/gameState/hand`), nextHandState);
+    await update(ref(database, `rooms/${roomId}`), { updatedAt: Date.now() });
   } catch (error) {
     if (error instanceof SubmitGameActionError) {
       throw error;

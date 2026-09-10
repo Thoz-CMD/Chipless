@@ -1,5 +1,5 @@
 import { FirebaseError } from "firebase/app";
-import { get, ref, serverTimestamp, update } from "firebase/database";
+import { get, ref, update } from "firebase/database";
 
 import { createHoldemGameState } from "@/features/game/logic/texas-holdem";
 import {
@@ -140,14 +140,29 @@ export async function startNextHand(roomId: string): Promise<void> {
       [`rooms/${roomId}/gameState/currentBigBlindUid`]: nextBigBlindUid,
       [`rooms/${roomId}/gameState/handNumber`]: nextHandNumber,
       [`rooms/${roomId}/gameState/hand`]: nextHand,
-      [`rooms/${roomId}/updatedAt`]: serverTimestamp(),
+      [`rooms/${roomId}/updatedAt`]: Date.now(),
     };
 
     for (const leavingPlayer of leavingPlayers) {
       updates[`roomPlayers/${roomId}/${leavingPlayer.uid}`] = null;
     }
 
-    await update(ref(database), updates);
+    // Update room and players separately to avoid root path permission issues
+    const roomUpdates: Record<string, unknown> = {};
+    const playerUpdates: Record<string, unknown> = {};
+    
+    for (const [key, value] of Object.entries(updates)) {
+      if (key.startsWith(`rooms/${roomId}`)) {
+        roomUpdates[key.replace(`rooms/${roomId}/`, '')] = value;
+      } else if (key.startsWith(`roomPlayers/${roomId}`)) {
+        playerUpdates[key.replace(`roomPlayers/${roomId}/`, '')] = value;
+      }
+    }
+    
+    await update(ref(database, `rooms/${roomId}`), roomUpdates);
+    if (Object.keys(playerUpdates).length > 0) {
+      await update(ref(database, `roomPlayers/${roomId}`), playerUpdates);
+    }
   } catch (error) {
     if (error instanceof StartNextHandError) {
       throw error;

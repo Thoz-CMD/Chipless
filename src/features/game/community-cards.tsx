@@ -1,4 +1,4 @@
-import type { BettingRound } from "@/features/game/logic/texas-holdem";
+  import type { BettingRound } from "@/features/game/logic/texas-holdem";
 import { CARD_THEMES, DEFAULT_CARD_ID } from "@/features/game/table-skins";
 import type { CardTheme } from "@/features/game/table-skins";
 

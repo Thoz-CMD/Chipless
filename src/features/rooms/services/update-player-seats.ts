@@ -29,15 +29,18 @@ export async function updatePlayerSeatOrder(
       );
     }
 
-    const updates = orderedPlayerUids.reduce<Record<string, number>>(
-      (paths, playerUid, seatIndex) => {
-        paths[`roomPlayers/${roomId}/${playerUid}/seatIndex`] = seatIndex;
-        return paths;
-      },
-      {},
-    );
-
-    await update(ref(getRealtimeDatabase()), updates);
+    const database = getRealtimeDatabase();
+    for (const [playerUid, seatIndex] of Object.entries(
+      orderedPlayerUids.reduce<Record<string, number>>(
+        (paths, playerUid, seatIndex) => {
+          paths[playerUid] = seatIndex;
+          return paths;
+        },
+        {},
+      ),
+    )) {
+      await update(ref(database, `roomPlayers/${roomId}/${playerUid}`), { seatIndex });
+    }
   } catch (error) {
     if (error instanceof UpdatePlayerSeatsError) {
       throw error;

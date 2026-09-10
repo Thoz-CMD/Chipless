@@ -96,26 +96,28 @@ export function RoomSummary({ roomId }: { roomId: string }) {
 
   useEffect(() => {
     let isMounted = true;
+    const auth = getFirebaseAuth();
 
-    async function loadRoom() {
+    // Use onAuthStateChanged to properly handle authentication state
+    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
+      if (!isMounted) return;
+      
       try {
-        const auth = getFirebaseAuth();
-
-        if (!auth.currentUser) {
+        if (!user) {
+          // Sign in anonymously if not signed in
           await signInWithAnonymousAccount();
+          // onAuthStateChanged will be called again with the new user
+          return;
         }
 
-        const uid = getFirebaseAuth().currentUser?.uid;
-
-        if (!uid) {
-          throw new Error(t("unable_to_identify"));
-        }
-
+        const uid = user.uid;
         const database = getRealtimeDatabase();
+        
         const [snapshot, playerSnapshot] = await Promise.all([
           get(ref(database, `rooms/${roomId}`)),
           get(ref(database, `roomPlayers/${roomId}/${uid}`)),
         ]);
+        
         const value: unknown = snapshot.val();
         const playerValue: unknown = playerSnapshot.val();
 
@@ -137,6 +139,7 @@ export function RoomSummary({ roomId }: { roomId: string }) {
           setLoadState({ status: "loaded", room: value, currentUid: uid });
         }
       } catch (error) {
+        console.error("Error in room loading:", error);
         const message =
           error instanceof Error
             ? error.message
@@ -146,12 +149,11 @@ export function RoomSummary({ roomId }: { roomId: string }) {
           setLoadState({ status: "error", message });
         }
       }
-    }
-
-    void loadRoom();
+    });
 
     return () => {
       isMounted = false;
+      unsubscribeAuth();
     };
   }, [roomId, router, t]);
 
@@ -212,9 +214,12 @@ export function RoomSummary({ roomId }: { roomId: string }) {
       },
     );
 
+    // Setup player presence - this should be called once per component mount
     setupPlayerPresence(roomId)
       .then((cleanup) => {
-        cleanupPresence = cleanup;
+        if (isMounted) {
+          cleanupPresence = cleanup;
+        }
       })
       .catch((error) => {
         const message =
@@ -228,9 +233,11 @@ export function RoomSummary({ roomId }: { roomId: string }) {
       isMounted = false;
       off(roomRef);
       unsubscribePlayers();
-      cleanupPresence?.();
+      if (cleanupPresence) {
+        cleanupPresence();
+      }
     };
-  }, [loadState.status, roomId]);
+  }, [loadState.status, roomId, t]);
 
   useEffect(() => {
     if (loadState.status !== "loaded" || playersState.status !== "loaded") {
@@ -242,6 +249,9 @@ export function RoomSummary({ roomId }: { roomId: string }) {
     );
 
     if (!currentPlayerIsPresent) {
+      console.warn('Current player not found in players list, redirecting to home');
+      console.log('Current UID:', loadState.currentUid);
+      console.log('Players in room:', playersState.players.map(p => ({ uid: p.uid, displayName: p.displayName })));
       router.replace("/");
       return;
     }
@@ -288,36 +298,37 @@ export function RoomSummary({ roomId }: { roomId: string }) {
       return;
     }
 
-    const removeStalePlayers = () => {
-      const now = Date.now();
-      const currentPlayerIsPresent = playersState.players.some(
-        (player) => player.uid === loadState.currentUid,
-      );
+    // ⚠️ TEMPORARILY DISABLED - This is removing players incorrectly
+    // const removeStalePlayers = () => {
+    //   const now = Date.now();
+    //   const currentPlayerIsPresent = playersState.players.some(
+    //     (player) => player.uid === loadState.currentUid,
+    //   );
 
-      if (!currentPlayerIsPresent) {
-        return;
-      }
+    //   if (!currentPlayerIsPresent) {
+    //     return;
+    //   }
 
-      for (const player of playersState.players) {
-        if (
-          player.uid === loadState.currentUid ||
-          player.online ||
-          player.lastSeen === undefined ||
-          now - player.lastSeen < staleOfflinePlayerMs
-        ) {
-          continue;
-        }
+    //   for (const player of playersState.players) {
+    //     if (
+    //       player.uid === loadState.currentUid ||
+    //       player.online ||
+    //       player.lastSeen === undefined ||
+    //       now - player.lastSeen < staleOfflinePlayerMs
+    //     ) {
+    //       continue;
+    //     }
 
-        void removeStaleRoomPlayer({ roomId, uid: player.uid });
-      }
-    };
+    //     void removeStaleRoomPlayer({ roomId, uid: player.uid });
+    //   }
+    // };
 
-    removeStalePlayers();
-    const intervalId = window.setInterval(removeStalePlayers, 5_000);
+    // removeStalePlayers();
+    // const intervalId = window.setInterval(removeStalePlayers, 5_000);
 
-    return () => {
-      window.clearInterval(intervalId);
-    };
+    // return () => {
+    //   window.clearInterval(intervalId);
+    // };
   }, [loadState, playersState, roomId]);
 
   return (

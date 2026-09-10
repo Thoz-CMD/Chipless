@@ -1,4 +1,4 @@
-import { get, ref, serverTimestamp, update } from "firebase/database";
+import { get, ref, update } from "firebase/database";
 
 import {
   createHoldemGameState,
@@ -161,7 +161,7 @@ export async function repairRoomAfterPlayerLeaves({
   const nextBigBlindUid =
     getNextBigBlindUid(roomValue, allPlayers, remainingPlayers) ?? roomValue.hostUid;
   const updates: Record<string, unknown> = {
-    [`rooms/${roomId}/updatedAt`]: serverTimestamp(),
+    [`rooms/${roomId}/updatedAt`]: Date.now(),
   };
 
   if (roomValue.gameState?.handNumber !== undefined) {
@@ -252,5 +252,5 @@ export async function repairRoomAfterPlayerLeaves({
     }
   }
 
-  await update(ref(database), updates);
+  await update(ref(database, `rooms/${roomId}`), updates);
 }

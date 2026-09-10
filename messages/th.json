@@ -32,7 +32,7 @@
     "title": "ตั้งค่าห้อง",
     "host_settings": "การตั้งค่าห้อง (โฮสต์)",
     "all_in_mode": "โหมดออลอิน",
-    "all_in_mode_description": "พรีฟลอบตาม/หมอบ → ฟลอบออลอิน (ไม่มี Turn/River)",
+    "all_in_mode_description": "พรีฟลอบ → ฟลอบ ออลอิน (ไม่มี Turn/River)",
     "max_all_in_amount": "วงเงินออลอินสูงสุด (บาท)",
     "max_all_in_amount_description": "จำนวนเงินที่จะลงออลอินทันทีในรอบฟลอบ",
     "save_settings": "บันทึก",
@@ -226,5 +226,27 @@
     "your_total_net": "ยอดรวมของคุณ",
     "played_on": "เล่นเมื่อ",
     "total_hands": "จำนวนมือทั้งหมด"
+  },
+  "settlements_summary": {
+    "title": "สรุปผลการเงิน",
+    "description": "คำนวณยอดสุทธิและวิธีการโอนเงินที่สั้นที่สุด",
+    "net_summary": "สรุปยอดสุทธิของทุกคน",
+    "winners": "ฝ่ายได้เงิน (+)",
+    "losers": "ฝ่ายจ่ายเงิน (-)",
+    "transfer_instructions": "วิธีโอนที่สั้นที่สุด",
+    "total_transfers": "รวมทั้งหมด {count} สลิป จบครบทุกคนพอดี",
+    "line_summary": "สรุปย่อสำหรับส่งเข้าไลน์กลุ่ม",
+    "full_summary": "สรุปแบบเต็ม",
+    "copy_line": "คัดลอกสำหรับส่งไลน์",
+    "copy_full": "คัดลอกสรุปแบบเต็ม",
+    "copied": "คัดลอกแล้ว!",
+    "close": "ปิด",
+    "calculate_summary": "คำนวณสรุปผล",
+    "no_settlements": "ยังไม่มีข้อมูลการจบมือ",
+    "calculating": "กำลังคำนวณ..."
+  },
+  "emoji": {
+    "send_reaction": "ส่งอิโมจิ",
+    "choose_emoji": "เลือกอิโมจิเพื่อส่ง"
   }
 }

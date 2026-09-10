@@ -137,14 +137,14 @@ export async function saveGameHistory({
       },
     };
 
-    // Save game history for ALL players in the room
-    // (each player will have their own copy of the game history)
-    const updates = players.reduce<Record<string, unknown>>((acc, player) => {
-      acc[`gameHistory/${player.uid}/${historyKey}`] = historyData;
-      return acc;
-    }, {});
-
-    await update(ref(db), updates);
+    // ⚠️ CRITICAL FIX: Don't try to save history for ALL players here!
+    // Each player must save their own history when they leave the room.
+    // Only the current authenticated user can write to their own gameHistory path
+    // due to Firebase security rules: gameHistory/$userId/.write = "auth != null && auth.uid === $userId"
+    
+    // This function should NOT write to other players' gameHistory paths
+    // Instead, each player should call savePersonalGameHistory when they leave
+    console.log('Game completed - players must save their individual history when leaving');
   } catch (error) {
     console.error("Failed to save game history:", error);
     throw new SaveGameHistoryError(

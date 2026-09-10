@@ -1,3 +1,5 @@
+import type { ProfileFrame } from "@/features/game/profile-frames";
+
 const avatarTones = [
   "from-neutral-200 to-neutral-700",
   "from-zinc-100 to-zinc-800",
@@ -22,6 +24,7 @@ export function PlayerAvatar({
   isDealer,
   isCurrentTurn,
   hasFolded,
+  profileFrame,
 }: {
   uid: string;
   name: string;
@@ -31,28 +34,64 @@ export function PlayerAvatar({
   isDealer: boolean;
   isCurrentTurn: boolean;
   hasFolded?: boolean;
+  profileFrame?: ProfileFrame;
 }) {
   const tone = avatarTones[getAvatarIndex(uid) % avatarTones.length];
   const initial = name.trim().charAt(0).toUpperCase() || "?";
   const isOnFire = winStreak >= 2 && !hasFolded;
 
+  // Use custom frame if provided, otherwise use default styling
+  const useCustomFrame = profileFrame && profileFrame.id !== "none" && !hasFolded;
+  
+  const getBorderClass = () => {
+    if (hasFolded) return "border-white/20 opacity-50 shadow-none ring-0";
+    if (useCustomFrame) return profileFrame.borderStyle;
+    if (isOnFire) {
+      return isCurrentTurn
+        ? "animate-fire-glow border-amber-300 shadow-[0_0_32px_rgba(249,115,22,1),0_0_48px_rgba(239,68,68,0.8)] ring-4 ring-amber-300"
+        : "animate-fire-glow border-orange-400 ring-2 ring-orange-400/90";
+    }
+    if (isCurrentTurn) return "border-yellow-300 shadow-[0_0_26px_rgba(253,224,71,0.8)] ring-4 ring-yellow-300/70";
+    if (isCurrentUser) return "border-white shadow-[0_0_18px_rgba(255,255,255,0.18)] ring-2 ring-white/70";
+    return "border-white/45 shadow-[0_0_18px_rgba(255,255,255,0.18)]";
+  };
+
+  const getGlowClass = () => {
+    if (hasFolded) return "";
+    if (useCustomFrame) {
+      const baseGlow = profileFrame.glowEffect;
+      const ringClass = profileFrame.ringStyle || "";
+      return `${baseGlow} ${ringClass}`;
+    }
+    return "";
+  };
+
+  const getAnimationClass = () => {
+    if (useCustomFrame && profileFrame.pulseAnimation) {
+      return "animate-pulse";
+    }
+    return "";
+  };
+
   return (
     <div className="relative flex size-12 items-center justify-center">
+      {/* Custom Frame Corner Accents */}
+      {useCustomFrame && profileFrame.cornerAccents && (
+        <>
+          {/* Top-left corner */}
+          <div className="pointer-events-none absolute -top-1 -left-1 z-30 size-3 border-l-2 border-t-2" style={{ borderColor: profileFrame.previewColor }} />
+          {/* Top-right corner */}
+          <div className="pointer-events-none absolute -top-1 -right-1 z-30 size-3 border-r-2 border-t-2" style={{ borderColor: profileFrame.previewColor }} />
+          {/* Bottom-left corner */}
+          <div className="pointer-events-none absolute -bottom-1 -left-1 z-30 size-3 border-l-2 border-b-2" style={{ borderColor: profileFrame.previewColor }} />
+          {/* Bottom-right corner */}
+          <div className="pointer-events-none absolute -bottom-1 -right-1 z-30 size-3 border-r-2 border-b-2" style={{ borderColor: profileFrame.previewColor }} />
+        </>
+      )}
+
       {/* Outer Glow & Fire Ring */}
       <div
-        className={`relative flex size-full items-center justify-center overflow-hidden rounded-full border bg-gradient-to-br ${tone} text-lg font-bold text-black transition-all duration-300 ${
-          hasFolded
-            ? "border-white/20 opacity-50 shadow-none ring-0"
-            : isOnFire
-              ? isCurrentTurn
-                ? "animate-fire-glow border-amber-300 shadow-[0_0_32px_rgba(249,115,22,1),0_0_48px_rgba(239,68,68,0.8)] ring-4 ring-amber-300"
-                : "animate-fire-glow border-orange-400 ring-2 ring-orange-400/90"
-              : isCurrentTurn
-                ? "border-yellow-300 shadow-[0_0_26px_rgba(253,224,71,0.8)] ring-4 ring-yellow-300/70"
-                : isCurrentUser
-                    ? "border-white shadow-[0_0_18px_rgba(255,255,255,0.18)] ring-2 ring-white/70"
-                    : "border-white/45 shadow-[0_0_18px_rgba(255,255,255,0.18)]"
-        }`}
+        className={`relative flex size-full items-center justify-center overflow-hidden rounded-full bg-gradient-to-br ${tone} text-lg font-bold text-black transition-all duration-300 ${getBorderClass()} ${getGlowClass()} ${getAnimationClass()}`}
       >
         {photoUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */

@@ -55,7 +55,7 @@ export const BG_ORDER: BgThemeId[] = ["black", "forest", "ocean", "crimson", "vi
 
 // ─── Table Themes ─────────────────────────────────────────────────────────────
 
-export type TableThemeId = "classic" | "midnight" | "vegas" | "royal" | "neon" | "charcoal";
+export type TableThemeId = "classic" | "midnight" | "vegas" | "royal" | "neon" | "charcoal" | "wood" | "marble" | "fabric" | "mhonew-v1";
 
 export type TableTheme = {
   id: TableThemeId;
@@ -66,6 +66,8 @@ export type TableTheme = {
   tableBorder: string;
   tableGlow: string;
   potBg: string;
+  useImage?: boolean; // Flag to indicate image-based theme
+  imageUrl?: string;  // Path to the image
 };
 
 export const TABLE_THEMES: Record<TableThemeId, TableTheme> = {
@@ -141,12 +143,60 @@ export const TABLE_THEMES: Record<TableThemeId, TableTheme> = {
       "inset 0 0 42px rgba(150,150,150,0.08), 0 0 28px rgba(120,120,120,0.12)",
     potBg: "rgba(10,10,10,0.85)",
   },
+  wood: {
+    id: "wood",
+    name: "Wood",
+    previewColor: "#3e2723",
+    tableOuter: "url(/images/table-themes/wood.jpg)",
+    tableInner: "rgba(30,15,5,0.4)",
+    tableBorder: "rgba(120,80,40,0.6)",
+    tableGlow: "inset 0 0 42px rgba(100,60,30,0.2), 0 0 28px rgba(80,50,20,0.15)",
+    potBg: "rgba(20,10,5,0.85)",
+    useImage: true,
+    imageUrl: "/images/table-themes/wood.jpg",
+  },
+  marble: {
+    id: "marble",
+    name: "Marble",
+    previewColor: "#9e9e9e",
+    tableOuter: "url(/images/table-themes/marble.jpg)",
+    tableInner: "rgba(180,180,180,0.3)",
+    tableBorder: "rgba(200,200,200,0.5)",
+    tableGlow: "inset 0 0 42px rgba(255,255,255,0.1), 0 0 28px rgba(200,200,200,0.15)",
+    potBg: "rgba(100,100,100,0.8)",
+    useImage: true,
+    imageUrl: "/images/table-themes/marble.jpg",
+  },
+  fabric: {
+    id: "fabric",
+    name: "Fabric",
+    previewColor: "#1a4d1a",
+    tableOuter: "url(/images/table-themes/fabric.jpg)",
+    tableInner: "rgba(10,40,10,0.5)",
+    tableBorder: "rgba(80,120,80,0.5)",
+    tableGlow: "inset 0 0 42px rgba(60,100,60,0.15), 0 0 28px rgba(40,80,40,0.2)",
+    potBg: "rgba(5,25,5,0.85)",
+    useImage: true,
+    imageUrl: "/images/table-themes/fabric.jpg",
+  },
+  "mhonew-v1": {
+    id: "mhonew-v1",
+    name: "เอ็มออนิว-V1",
+    previewColor: "#2d1f1f",
+    tableOuter: "url(/images/table-themes/เอ็มออนิว-V1.jpg)",
+    tableInner: "rgba(20,15,15,0)",
+    tableBorder: "rgba(150,100,80,0.6)",
+    tableGlow: "inset 0 0 20px rgba(100,70,60,0.1), 0 0 15px rgba(80,60,50,0.15)",
+    potBg: "rgba(0,0,0,0.6)",
+    useImage: true,
+    imageUrl: "/images/table-themes/เอ็มออนิว-V1.jpg",
+  },
 };
 
 export const DEFAULT_TABLE_ID: TableThemeId = "charcoal";
 export const TABLE_STORAGE_KEY = "chipless_table_theme";
 export const TABLE_ORDER: TableThemeId[] = [
-  "charcoal", "classic", "midnight", "vegas", "royal", "neon",
+  "charcoal", "classic", "midnight", "vegas", "royal", "neon", "wood", "marble", "fabric", "mhonew-v1",
 ];
 
 

@@ -4,7 +4,6 @@ import {
   onDisconnect,
   ref,
   remove,
-  serverTimestamp,
   update,
 } from "firebase/database";
 
@@ -29,8 +28,24 @@ async function getSignedInUid(): Promise<string> {
     return auth.currentUser.uid;
   }
 
-  const credential = await signInWithAnonymousAccount();
-  return credential.user.uid;
+  // Sign in anonymously and wait for auth state to be established
+  await signInWithAnonymousAccount();
+  
+  // Wait for auth state to be properly established using a Promise
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      unsubscribe();
+      reject(new Error("Authentication timeout"));
+    }, 5000); // 5 second timeout
+
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        clearTimeout(timeout);
+        unsubscribe();
+        resolve(user.uid);
+      }
+    });
+  });
 }
 
 async function removePlayerAndDeleteEmptyRoom(
@@ -90,19 +105,40 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
         .catch(() => null)) ?? null;
     const database = getRealtimeDatabase();
     const playerRef = ref(database, `roomPlayers/${roomId}/${uid}`);
+    
+    // Create a fresh disconnect operation
     const disconnectOperation = onDisconnect(playerRef);
+    let disconnectOperationActive = false;
     
     const markOnline = () => {
-      void update(playerRef, {
-        lastSeen: serverTimestamp(),
-        online: true,
-      });
+      // Only update if we're still authenticated as the same user
+      const auth = getFirebaseAuth();
+      if (auth.currentUser?.uid === uid) {
+        void update(playerRef, {
+          lastSeen: Date.now(),
+          online: true,
+        }).catch((error) => {
+          // Only log if it's not a permission error (which is expected after removal)
+          if (!error?.message?.includes('PERMISSION_DENIED')) {
+            console.error('Failed to mark online:', error);
+          }
+        });
+      }
     };
     const markOffline = () => {
-      void update(playerRef, {
-        lastSeen: serverTimestamp(),
-        online: false,
-      });
+      // Only update if we're still authenticated as the same user
+      const auth = getFirebaseAuth();
+      if (auth.currentUser?.uid === uid) {
+        void update(playerRef, {
+          lastSeen: Date.now(),
+          online: false,
+        }).catch((error) => {
+          // Only log if it's not a permission error (which is expected after removal)
+          if (!error?.message?.includes('PERMISSION_DENIED')) {
+            console.error('Failed to mark offline:', error);
+          }
+        });
+      }
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible") {
@@ -125,15 +161,16 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
 
     // Set player as online
     await update(playerRef, {
-      lastSeen: serverTimestamp(),
+      lastSeen: Date.now(),
       online: true,
     });
     
     // Set up disconnect handler - mark offline but DON'T delete
     await disconnectOperation.update({
-      lastSeen: serverTimestamp(),
+      lastSeen: Date.now(),
       online: false,
     });
+    disconnectOperationActive = true;
     
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("online", markOnline);
@@ -143,19 +180,30 @@ export async function setupPlayerPresence(roomId: string): Promise<() => void> {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("online", markOnline);
       window.removeEventListener("focus", refreshIdToken);
-      void disconnectOperation.cancel();
-      // Only mark offline if the player is still in the room (not intentionally leaving).
-      // If the player was removed via the API, updating the (now-deleted) node would
-      // trigger a PERMISSION_DENIED validation error.
-      get(ref(database, `roomPlayers/${roomId}/${uid}`))
-        .then((snapshot) => {
-          if (snapshot.exists()) {
-            markOffline();
-          }
-        })
-        .catch(() => {
-          // Ignore errors on cleanup
+      
+      // Only cancel if it was actually set up
+      if (disconnectOperationActive) {
+        void disconnectOperation.cancel().catch(() => {
+          // Ignore cancel errors
         });
+      }
+      
+      // Only mark offline if we're still authenticated and the player record still exists
+      // This prevents PERMISSION_DENIED errors when auth state is uncertain
+      const auth = getFirebaseAuth();
+      if (auth.currentUser?.uid === uid) {
+        get(ref(database, `roomPlayers/${roomId}/${uid}`))
+          .then((snapshot) => {
+            // Only update if the record exists and we're still the same user
+            if (snapshot.exists() && auth.currentUser?.uid === uid) {
+              markOffline();
+            }
+          })
+          .catch(() => {
+            // Ignore errors on cleanup - this is expected if the user was already removed
+            // or if there are permission issues
+          });
+      }
     };
   } catch (error) {
     if (error instanceof FirebaseError) {

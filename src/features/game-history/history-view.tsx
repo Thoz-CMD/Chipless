@@ -25,48 +25,44 @@ export function HistoryView() {
 
   useEffect(() => {
     const auth = getFirebaseAuth();
+    let unsubscribeHistory: (() => void) | undefined;
     
-    async function loadHistory() {
+    // Use onAuthStateChanged to properly handle authentication state
+    const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       try {
-        // Sign in anonymously if not already signed in
-        let currentUser = auth.currentUser;
-        if (!currentUser) {
-          await signInWithAnonymousAccount();
-          currentUser = auth.currentUser;
+        // Clean up existing subscription
+        if (unsubscribeHistory) {
+          unsubscribeHistory();
+          unsubscribeHistory = undefined;
         }
 
-        if (!currentUser) {
-          setLoadState({
-            status: "error",
-            message: "Unable to authenticate.",
-          });
+        if (!user) {
+          // Sign in anonymously if not signed in
+          await signInWithAnonymousAccount();
+          // onAuthStateChanged will be called again with the new user
           return;
         }
 
-        setCurrentUid(currentUser.uid);
+        setCurrentUid(user.uid);
 
-        const unsubscribe = subscribeGameHistory(currentUser.uid, (history) => {
+        // Now that we're authenticated, subscribe to history
+        unsubscribeHistory = subscribeGameHistory(user.uid, (history) => {
           setLoadState({ status: "ready", history });
         });
 
-        return unsubscribe;
       } catch (error) {
+        console.error("Error in auth state handler:", error);
         setLoadState({
           status: "error",
           message: "Unable to load history.",
         });
       }
-    }
-
-    let unsubscribe: (() => void) | undefined;
-    
-    loadHistory().then((cleanup) => {
-      unsubscribe = cleanup;
     });
 
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
+      unsubscribeAuth();
+      if (unsubscribeHistory) {
+        unsubscribeHistory();
       }
     };
   }, []);

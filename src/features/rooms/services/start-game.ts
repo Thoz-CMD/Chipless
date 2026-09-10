@@ -1,5 +1,5 @@
 import { FirebaseError } from "firebase/app";
-import { get, ref, serverTimestamp, update } from "firebase/database";
+import { get, ref, update } from "firebase/database";
 
 import { createHoldemGameState } from "@/features/game/logic/texas-holdem";
 import {
@@ -110,12 +110,14 @@ export async function startGame(roomId: string): Promise<void> {
       ...(allInMode ? { gameMode: "allin" as const, maxAllInAmount } : {}),
     });
 
-    await update(ref(database), {
-      [`rooms/${roomId}/status`]: "playing",
-      [`rooms/${roomId}/gameState/currentBigBlindUid`]: uid,
-      [`rooms/${roomId}/gameState/handNumber`]: 1,
-      [`rooms/${roomId}/gameState/hand`]: hand,
-      [`rooms/${roomId}/updatedAt`]: serverTimestamp(),
+    await update(ref(database, `rooms/${roomId}`), {
+      status: "playing",
+      gameState: {
+        currentBigBlindUid: uid,
+        handNumber: 1,
+        hand,
+      },
+      updatedAt: Date.now(),
     });
   } catch (error) {
     if (error instanceof StartGameError) {

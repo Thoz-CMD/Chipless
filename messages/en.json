@@ -226,5 +226,27 @@
     "your_total_net": "Your Total Net",
     "played_on": "Played on",
     "total_hands": "Total Hands"
+  },
+  "settlements_summary": {
+    "title": "Financial Summary",
+    "description": "Calculate net amounts and optimal transfer instructions",
+    "net_summary": "Net Summary for All Players",
+    "winners": "Winners (+)",
+    "losers": "Losers (-)",
+    "transfer_instructions": "Optimal Transfer Instructions",
+    "total_transfers": "Total {count} transfers to settle all debts",
+    "line_summary": "Quick Summary for Messaging",
+    "full_summary": "Full Summary",
+    "copy_line": "Copy for Messaging",
+    "copy_full": "Copy Full Summary",
+    "copied": "Copied!",
+    "close": "Close",
+    "calculate_summary": "Calculate Summary",
+    "no_settlements": "No settlement data available yet",
+    "calculating": "Calculating..."
+  },
+  "emoji": {
+    "send_reaction": "Send emoji reaction",
+    "choose_emoji": "Choose an emoji reaction"
   }
 }

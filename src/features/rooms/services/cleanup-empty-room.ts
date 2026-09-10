@@ -35,16 +35,17 @@ export async function cleanupEmptyRoom(roomId: string): Promise<void> {
       // Ignore if non-host client cannot delete secrets
     }
 
-    try {
-      await remove(ref(database, `roomPlayerHistory/${roomId}`));
-    } catch {
-      // Ignore
-    }
+    // ⚠️ CRITICAL FIX: Don't try to delete roomPlayerHistory
+    // Each player's history should only be deleted by themselves due to security rules:
+    // roomPlayerHistory/$roomId/$uid/.write = "auth != null && $uid === auth.uid"
+    // Attempting to delete the entire roomPlayerHistory/${roomId} path will fail
+    // if it contains entries for other users that the current user can't delete
+    console.log('Skipping roomPlayerHistory cleanup to avoid permission errors');
 
     try {
       await remove(ref(database, `rooms/${roomId}`));
     } catch {
-      // Ignore
+      // Ignore - room might be protected or user might not be host
     }
   } catch {
     // Top-level catch to guarantee cleanupEmptyRoom never throws

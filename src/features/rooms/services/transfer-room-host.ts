@@ -1,5 +1,5 @@
 import { FirebaseError } from "firebase/app";
-import { get, ref, serverTimestamp, update } from "firebase/database";
+import { get, ref, update } from "firebase/database";
 
 import { isRoomPlayerRecord } from "@/features/rooms/services/player-record";
 import { getFirebaseAuth, getRealtimeDatabase } from "@/lib/firebase/client";
@@ -79,18 +79,21 @@ export async function transferRoomHost({
       });
     }
 
-    const updates: Record<string, unknown> = {
-      [`rooms/${roomId}/hostUid`]: targetUid,
-      [`rooms/${roomId}/updatedAt`]: serverTimestamp(),
-      [`roomPlayers/${roomId}/${currentUid}/role`]: "player",
-      [`roomPlayers/${roomId}/${targetUid}/role`]: "host",
-    };
-
+    await update(ref(database, `rooms/${roomId}`), {
+      hostUid: targetUid,
+      updatedAt: Date.now(),
+    });
+    await update(ref(database, `roomPlayers/${roomId}/${currentUid}`), {
+      role: "player",
+    });
+    await update(ref(database, `roomPlayers/${roomId}/${targetUid}`), {
+      role: "host",
+    });
     if (roomSecretsSnapshot.exists()) {
-      updates[`roomSecrets/${roomId}/hostUid`] = targetUid;
+      await update(ref(database, `roomSecrets/${roomId}`), {
+        hostUid: targetUid,
+      });
     }
-
-    await update(ref(database), updates);
   } catch (error) {
     if (error instanceof TransferRoomHostError) {
       throw error;

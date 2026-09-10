@@ -12,6 +12,7 @@ export function GameHeader({
   onOpenMenu,
   onOpenSettings,
   leaderboard,
+  emojiButton,
 }: {
   roomName: string;
   onCopyInviteLink: () => void;
@@ -22,6 +23,7 @@ export function GameHeader({
   onOpenMenu: () => void;
   onOpenSettings?: () => void;
   leaderboard?: ReactNode;
+  emojiButton?: ReactNode;
 }) {
   const t = useTranslations("game");
   const tCommon = useTranslations("common");
@@ -92,7 +94,10 @@ export function GameHeader({
       </div>
 
       <div className="mt-3">
-        <div className="min-w-0 flex-1">{leaderboard}</div>
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">{leaderboard}</div>
+          {emojiButton}
+        </div>
       </div>
     </header>
   );

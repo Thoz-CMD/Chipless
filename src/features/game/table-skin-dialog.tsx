@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import {
   ChevronRight,
-  ChevronLeft,
   ChevronUp,
   ChevronDown,
   Globe,
@@ -9,6 +8,7 @@ import {
   Zap,
   Check,
   ArrowLeftRight,
+  Calculator,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { toast } from "sonner";
@@ -281,14 +281,17 @@ function HostRoomSettingsSection({
     }
   };
 
-  const handleSaveAmount = async (amount: number) => {
+  const handleSaveAmount = async () => {
     if (!isHost || isSaving) return;
-    setLocalAmount(amount);
+    const parsedAmount = typeof localAmount === "number" ? localAmount : Number(localAmount);
+
+    if (!localAllInMode || parsedAmount <= 0) return;
+
     setIsSaving(true);
     try {
       await updateRoomSettings(roomId, {
         allInMode: true,
-        maxAllInAmount: amount,
+        maxAllInAmount: parsedAmount,
       });
       toast.success(t("settings_saved"));
     } catch {
@@ -356,29 +359,9 @@ function HostRoomSettingsSection({
                 step={1}
                 value={localAmount}
                 onChange={(e) => setLocalAmount(e.target.value === "" ? "" : Number(e.target.value))}
-                onBlur={() => {
-                  const num = Number(localAmount);
-                  if (num > 0) {
-                    void handleSaveAmount(num);
-                  }
-                }}
                 className="h-10 border-amber-500/40 bg-amber-950/30 pl-8 text-right text-sm text-white placeholder:text-white/30 focus-visible:ring-amber-500/40"
               />
             </div>
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                const num = Number(localAmount);
-                if (num > 0) {
-                  void handleSaveAmount(num);
-                }
-              }}
-              disabled={isSaving || !localAmount || Number(localAmount) <= 0}
-              className="h-10 bg-amber-500 hover:bg-amber-400 text-black font-semibold text-xs px-3"
-            >
-              {t("save_settings")}
-            </Button>
           </div>
 
           <div className="grid grid-cols-4 gap-1.5 pt-1">
@@ -386,7 +369,7 @@ function HostRoomSettingsSection({
               <button
                 key={val}
                 type="button"
-                onClick={() => handleSaveAmount(val)}
+                onClick={() => setLocalAmount(val)}
                 className={cn(
                   "h-8 rounded-lg border text-xs font-semibold transition-colors",
                   Number(localAmount) === val
@@ -400,6 +383,20 @@ function HostRoomSettingsSection({
           </div>
         </div>
       )}
+
+      {localAllInMode && (
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => {
+            void handleSaveAmount();
+          }}
+          disabled={isSaving || !localAmount || Number(localAmount) <= 0}
+          className="w-full bg-amber-500 text-black hover:bg-amber-400 font-semibold text-xs"
+        >
+          {t("save_settings")}
+        </Button>
+      )}
     </div>
   );
 }
@@ -409,6 +406,7 @@ function HostRoomSettingsSection({
 function MainPage({
   onGoTheme,
   onGoSeats,
+  onCalculateSummary,
   roomId,
   isHost,
   canArrangeSeats,
@@ -417,6 +415,7 @@ function MainPage({
 }: {
   onGoTheme: () => void;
   onGoSeats?: () => void;
+  onCalculateSummary?: () => void;
   roomId?: string;
   isHost?: boolean;
   canArrangeSeats?: boolean;
@@ -426,6 +425,7 @@ function MainPage({
   const locale = useLocale();
   const isTh = locale === "th";
   const t = useTranslations("room_settings");
+  const tSummary = useTranslations("settlements_summary");
 
   return (
     <div className="mt-2 space-y-3">
@@ -442,6 +442,14 @@ function MainPage({
           label={t("arrange_seats")}
           description={t("arrange_seats_description")}
           onClick={onGoSeats}
+        />
+      )}
+      {isHost && onCalculateSummary && (
+        <SettingsRow
+          icon={Calculator}
+          label={tSummary("calculate_summary")}
+          description={tSummary("description")}
+          onClick={onCalculateSummary}
         />
       )}
       <HostRoomSettingsSection
@@ -674,6 +682,7 @@ export function TableSkinDialog({
   onSelectTable,
   onSelectCard,
   onStartTableRearrange,
+  onCalculateSummary,
   onClose,
 }: {
   open: boolean;
@@ -690,6 +699,7 @@ export function TableSkinDialog({
   onSelectTable: (id: TableThemeId) => void;
   onSelectCard: (id: CardThemeId) => void;
   onStartTableRearrange?: () => void;
+  onCalculateSummary?: () => void;
   onClose: () => void;
 }) {
   const [page, setPage] = useState<Page>("main");
@@ -720,16 +730,6 @@ export function TableSkinDialog({
       <DialogContent className="bg-black/95 text-white border-white/20 shadow-[0_0_32px_rgba(255,255,255,0.12)] sm:max-w-sm max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-base font-bold">
-            {page !== "main" && (
-              <button
-                type="button"
-                onClick={() => setPage("main")}
-                className="flex items-center justify-center rounded-lg p-1 hover:bg-white/10 transition-colors"
-                aria-label={isTh ? "ย้อนกลับ" : "Back"}
-              >
-                <ChevronLeft className="size-4" />
-              </button>
-            )}
             {title}
           </DialogTitle>
         </DialogHeader>
@@ -737,10 +737,8 @@ export function TableSkinDialog({
         {page === "main" && (
           <MainPage
             onGoTheme={() => setPage("theme")}
-            onGoSeats={() => {
-              onClose();
-              onStartTableRearrange?.();
-            }}
+            onGoSeats={canArrangeSeats ? () => setPage("seats") : undefined}
+            onCalculateSummary={onCalculateSummary}
             roomId={roomId}
             isHost={isHost}
             canArrangeSeats={canArrangeSeats}

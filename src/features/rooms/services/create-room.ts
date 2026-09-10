@@ -1,5 +1,5 @@
 import { FirebaseError } from "firebase/app";
-import { update, ref, serverTimestamp } from "firebase/database";
+import { update, ref } from "firebase/database";
 
 import { signInWithAnonymousAccount } from "@/features/auth/anonymous-auth";
 import { getFirebaseAuth, getRealtimeDatabase } from "@/lib/firebase/client";
@@ -62,7 +62,7 @@ export async function createRoom(
 
     const passcodeHash = await sha256Hex(values.roomPasscode);
     const database = getRealtimeDatabase();
-    const timestamp = serverTimestamp();
+    const timestamp = Date.now();
     const roomId = createRoomId();
 
     const updates = {
@@ -91,7 +91,9 @@ export async function createRoom(
       },
     };
 
-    await update(ref(database), updates);
+    await update(ref(database, `rooms/${roomId}`), updates[`rooms/${roomId}`]);
+    await update(ref(database, `roomPlayers/${roomId}/${uid}`), updates[`roomPlayers/${roomId}/${uid}`]);
+    await update(ref(database, `roomSecrets/${roomId}`), updates[`roomSecrets/${roomId}`]);
 
     return { roomId };
   } catch (error) {

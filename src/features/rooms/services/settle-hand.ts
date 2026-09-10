@@ -1,5 +1,5 @@
 import { FirebaseError } from "firebase/app";
-import { get, ref, serverTimestamp, update } from "firebase/database";
+import { get, ref, update } from "firebase/database";
 
 import {
   createHoldemGameState,
@@ -39,6 +39,7 @@ type RoomGameState = {
   currentBigBlindUid?: string;
   handNumber?: number;
   hand?: unknown;
+  settlements?: Record<string, HandSettlement>;
 };
 
 type RoomStateRecord = {
@@ -357,13 +358,19 @@ export async function settleHand({
       currentTurn: -1,
     };
 
-    await update(ref(database), {
-      [`rooms/${roomId}/gameState/settlements/${handNumber}`]: {
-        ...settlement,
-        createdAt: serverTimestamp(),
+    await update(ref(database, `rooms/${roomId}`), {
+      gameState: {
+        ...roomValue.gameState,
+        settlements: {
+          ...roomValue.gameState?.settlements,
+          [handNumber]: {
+            ...settlement,
+            createdAt: Date.now(),
+          },
+        },
+        hand: summaryHand,
       },
-      [`rooms/${roomId}/gameState/hand`]: summaryHand,
-      [`rooms/${roomId}/updatedAt`]: serverTimestamp(),
+      updatedAt: Date.now(),
     });
   } catch (error) {
     if (error instanceof SettleHandError) {
@@ -413,15 +420,17 @@ export async function correctHandWinner({
     }
 
     const database = getRealtimeDatabase();
-    const [hostSnapshot, settlementsSnapshot, settlementSnapshot] =
+    const [hostSnapshot, settlementsSnapshot, settlementSnapshot, roomSnapshot] =
       await Promise.all([
       get(ref(database, `rooms/${roomId}/hostUid`)),
       get(ref(database, `rooms/${roomId}/gameState/settlements`)),
       get(ref(database, `rooms/${roomId}/gameState/settlements/${handNumber}`)),
+      get(ref(database, `rooms/${roomId}`)),
     ]);
     const hostUid: unknown = hostSnapshot.val();
     const settlementsValue: unknown = settlementsSnapshot.val();
     const settlementValue: unknown = settlementSnapshot.val();
+    const roomValue: unknown = roomSnapshot.val();
 
     if (hostUid !== uid) {
       throw new SettleHandError("Only the host can edit the winner.", {
@@ -479,16 +488,22 @@ export async function correctHandWinner({
       selectedWinnerUids,
     );
 
-    await update(ref(database), {
-      [`rooms/${roomId}/gameState/settlements/${handNumber}`]: {
-        ...correctedSettlement,
-        correctedAt: serverTimestamp(),
-        correctedBy: uid,
-        previousWinnerUid: settlementValue.winnerUid,
-        previousWinnerUids: [...existingWinnerUids],
-        previousWinnerName: settlementValue.winnerName,
+    await update(ref(database, `rooms/${roomId}`), {
+      gameState: {
+        ...(roomValue as any)?.gameState,
+        settlements: {
+          ...settlementsValue,
+          [handNumber]: {
+            ...correctedSettlement,
+            correctedAt: Date.now(),
+            correctedBy: uid,
+            previousWinnerUid: settlementValue.winnerUid,
+            previousWinnerUids: [...existingWinnerUids],
+            previousWinnerName: settlementValue.winnerName,
+          },
+        },
       },
-      [`rooms/${roomId}/updatedAt`]: serverTimestamp(),
+      updatedAt: Date.now(),
     });
   } catch (error) {
     if (error instanceof SettleHandError) {

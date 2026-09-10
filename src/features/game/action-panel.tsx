@@ -430,20 +430,20 @@ export function ActionPanel({
                   </button>
                 </>
               ) : (
-                // All-In mode: Preflop round (Check/Fold or Call/Check)
+                // All-In mode: Preflop round (Fold or Call/Check)
                 <>
                   <button
                     type="button"
                     onClick={() => {
-                      setPendingAction((prev) => (prev === "check-fold" ? null : "check-fold"));
+                      setPendingAction((prev) => (prev === "fold" ? null : "fold"));
                     }}
                     disabled={isSubmittingAction}
-                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "check-fold"
+                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "fold"
                         ? "border-yellow-500/60 bg-yellow-500/20"
                         : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
                       }`}
                   >
-                    {tActions("check_fold")}
+                    {tActions("fold")}
                   </button>
                   {amountToCall > 0 ? (
                     <button

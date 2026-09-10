@@ -34,16 +34,14 @@ export async function updateRoomSettings(
     const db = getRealtimeDatabase();
     const now = Date.now();
 
-    const updates: Record<string, unknown> = {
-      [`rooms/${roomId}/settings/allInMode`]: settings.allInMode ?? false,
-      [`rooms/${roomId}/settings/maxAllInAmount`]:
+    await update(ref(db, `rooms/${roomId}/settings`), {
+      allInMode: settings.allInMode ?? false,
+      maxAllInAmount:
         settings.allInMode && typeof settings.maxAllInAmount === "number" && settings.maxAllInAmount > 0
           ? settings.maxAllInAmount
           : null,
-      [`rooms/${roomId}/updatedAt`]: now,
-    };
-
-    await update(ref(db), updates);
+    });
+    await update(ref(db, `rooms/${roomId}`), { updatedAt: now });
   } catch (error) {
     if (error instanceof UpdateRoomSettingsError) {
       throw error;

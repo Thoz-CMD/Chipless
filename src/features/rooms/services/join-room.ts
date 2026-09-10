@@ -1,5 +1,5 @@
 import { FirebaseError } from "firebase/app";
-import { get, ref, serverTimestamp, update } from "firebase/database";
+import { get, ref, update, set } from "firebase/database";
 
 import { signInWithAnonymousAccount } from "@/features/auth/anonymous-auth";
 import {
@@ -83,8 +83,24 @@ async function getSignedInUid(): Promise<string> {
     return auth.currentUser.uid;
   }
 
-  const credential = await signInWithAnonymousAccount();
-  return credential.user.uid;
+  // Sign in anonymously and wait for auth state to be established
+  await signInWithAnonymousAccount();
+  
+  // Wait for auth state to be properly established using a Promise
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      unsubscribe();
+      reject(new Error("Authentication timeout"));
+    }, 5000); // 5 second timeout
+
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        clearTimeout(timeout);
+        unsubscribe();
+        resolve(user.uid);
+      }
+    });
+  });
 }
 
 export async function joinRoom(values: JoinRoomInput): Promise<JoinedRoom> {
@@ -147,12 +163,31 @@ export async function joinRoom(values: JoinRoomInput): Promise<JoinedRoom> {
     const historySnapshot = await get(ref(database, `roomPlayerHistory/${values.roomId}/${uid}`));
     const playerHistory = historySnapshot.exists() ? historySnapshot.val() : null;
     
+    console.log('[join-room] Player history check:', {
+      uid,
+      roomId: values.roomId,
+      hasHistory: historySnapshot.exists(),
+      playerHistory,
+    });
+    
     // Get current players to check if seat is available
     const allPlayersSnapshot = await get(ref(database, `roomPlayers/${values.roomId}`));
     const allPlayers = allPlayersSnapshot.exists() ? allPlayersSnapshot.val() : {};
     const currentSeatIndices = Object.values(allPlayers)
       .filter((p: any) => p && typeof p === 'object' && typeof p.seatIndex === 'number')
       .map((p: any) => p.seatIndex);
+    
+    console.log('[join-room] Current seats taken:', currentSeatIndices);
+    
+    // Find next available seat (0-9)
+    const findNextAvailableSeat = (): number => {
+      for (let seat = 0; seat < 10; seat++) {
+        if (!currentSeatIndices.includes(seat)) {
+          return seat;
+        }
+      }
+      return currentSeatIndices.length; // Fallback: use next index
+    };
     
     const updates =
       existingPlayer !== null
@@ -163,16 +198,27 @@ export async function joinRoom(values: JoinRoomInput): Promise<JoinedRoom> {
             const newPlayerData: Record<string, unknown> = {
               uid,
               role: "player",
-              joinedAt: playerHistory?.joinedAt || serverTimestamp(),
+              joinedAt: playerHistory?.joinedAt || Date.now(),
               online: true,
             };
             
-            // Only restore seat if it's not taken by someone else
+            // Determine seat index
+            let assignedSeatIndex: number;
+            
+            // Priority 1: Restore previous seat if available
             if (playerHistory?.seatIndex !== undefined && 
                 typeof playerHistory.seatIndex === 'number' && 
                 !currentSeatIndices.includes(playerHistory.seatIndex)) {
-              newPlayerData.seatIndex = playerHistory.seatIndex;
+              assignedSeatIndex = playerHistory.seatIndex;
+              console.log('[join-room] Restoring previous seat:', playerHistory.seatIndex);
+            } 
+            // Priority 2: Find next available seat
+            else {
+              assignedSeatIndex = findNextAvailableSeat();
+              console.log('[join-room] Assigning new seat:', assignedSeatIndex);
             }
+            
+            newPlayerData.seatIndex = assignedSeatIndex;
             
             // Only restore displayName if it exists and is valid
             if (playerHistory?.displayName !== undefined && 
@@ -187,10 +233,14 @@ export async function joinRoom(values: JoinRoomInput): Promise<JoinedRoom> {
               newPlayerData.photoUrl = playerHistory.photoUrl;
             }
             
+            console.log('[join-room] New player data:', newPlayerData);
+            
             return { [playerPath]: newPlayerData };
           })();
 
-    await update(ref(database), updates);
+    // Use set instead of update to ensure we only write to this specific player path
+    // and don't accidentally affect other players
+    await set(ref(database, playerPath), updates[playerPath]);
 
     return { roomId: values.roomId };
   } catch (error) {

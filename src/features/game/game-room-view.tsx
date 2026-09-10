@@ -13,11 +13,17 @@ import { GameTable } from "@/features/game/game-table";
 import { PlayerSummaryDialog } from "@/features/game/player-summary-dialog";
 import { RoomLeaderboardPanel } from "@/features/game/room-leaderboard-panel";
 import { RoomScoreboardDialog } from "@/features/game/room-scoreboard-dialog";
+import { SettlementsSummaryDialog } from "@/features/game/settlements-summary-dialog";
+import { calculateSettlementsSummary } from "@/features/game/services/calculate-settlements-summary";
 import type { HoldemGameState } from "@/features/game/logic/texas-holdem";
 import { useGameSoundEffects } from "@/features/game/use-game-sound-effects";
 import { WinnerSelectDialog } from "@/features/game/winner-select-dialog";
 import { useTableSkin } from "@/features/game/use-table-skin";
 import { TableSkinDialog } from "@/features/game/table-skin-dialog";
+import { EmojiPicker } from "@/features/game/emoji-picker";
+import { EmojiAnimation } from "@/features/game/emoji-animation";
+import type { EmojiType, EmojiReaction } from "@/features/game/emoji-reactions";
+import { sendEmoji, subscribeToEmojis } from "@/features/game/services/emoji-service";
 import {
   WinnerCelebrationOverlay,
   type WinnerCelebrationData,
@@ -138,6 +144,7 @@ export function GameRoomView({
   const [isTransferringHost, setIsTransferringHost] = useState(false);
   const [isLeaderboardVisible, setIsLeaderboardVisible] = useState(false);
   const [isSkinDialogOpen, setIsSkinDialogOpen] = useState(false);
+  const [isSummaryDialogOpen, setIsSummaryDialogOpen] = useState(false);
   const [isArrangingSeats, setIsArrangingSeats] = useState(false);
   const {
     bgTheme,
@@ -161,6 +168,7 @@ export function GameRoomView({
     useState<WinnerCelebrationData | null>(null);
   const [extinguishAnimation, setExtinguishAnimation] =
     useState<ExtinguishedWinStreak | null>(null);
+  const [activeEmojis, setActiveEmojis] = useState<EmojiReaction[]>([]);
   const isHost = room.hostUid === currentUid;
   const isGameStarted = room.status === "playing";
   const holdemGameState = room.gameState?.hand ?? null;
@@ -287,6 +295,43 @@ export function GameRoomView({
     settlements,
     currentUid,
   });
+
+  // Subscribe to emoji reactions
+  useEffect(() => {
+    const unsubscribe = subscribeToEmojis(room.id, (reaction) => {
+      // Find the player's seat position
+      const player = players.find((p) => p.uid === reaction.fromUid);
+      if (player) {
+        // Add the reaction with player's position (we'll calculate in the animation component)
+        setActiveEmojis((prev) => [...prev, reaction]);
+      } else {
+        // If player not found, use random position
+        setActiveEmojis((prev) => [...prev, reaction]);
+      }
+    });
+
+    return unsubscribe;
+  }, [room.id, players]);
+
+  // Handle emoji removal after animation completes
+  const handleEmojiComplete = (emojiId: string) => {
+    setActiveEmojis((prev) => prev.filter((emoji) => emoji.id !== emojiId));
+  };
+
+  // Handle sending emoji
+  const handleSendEmoji = async (emoji: EmojiType) => {
+    try {
+      await sendEmoji(
+        room.id,
+        emoji,
+        currentUid,
+        currentDisplayName || "Player"
+      );
+    } catch (error) {
+      console.error("Failed to send emoji:", error);
+      toast.error("Failed to send emoji");
+    }
+  };
 
   useEffect(() => {
     const latestSettlementHandNumber = latestSettlement?.handNumber ?? null;
@@ -693,12 +738,52 @@ export function GameRoomView({
               onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
             />
           }
+          emojiButton={
+            <EmojiPicker
+              onSelectEmoji={handleSendEmoji}
+              disabled={isCurrentPlayerPendingLeave}
+            />
+          }
         />
       </div>
 
       {/* Game Table - Flexible space, centered */}
       <div className="flex flex-1 items-center justify-center overflow-visible py-2">
         <div className="relative aspect-[4/4.5] w-full max-w-[430px] md:max-w-[600px] lg:max-w-[430px]">
+          {/* Emoji Animations Overlay */}
+          {activeEmojis.map((reaction) => {
+            // Find player's position in the seated order (relative to current user)
+            const orderedPlayers = [...players].sort((a, b) => {
+              const aIndex = a.seatIndex ?? Number.MAX_SAFE_INTEGER;
+              const bIndex = b.seatIndex ?? Number.MAX_SAFE_INTEGER;
+              if (aIndex !== bIndex) return aIndex - bIndex;
+              return (a.joinedAt ?? 0) - (b.joinedAt ?? 0);
+            });
+            
+            // Rotate array so currentUid is first (matches game-table ordering)
+            const currentIndex = orderedPlayers.findIndex((p) => p.uid === currentUid);
+            if (currentIndex > 0) {
+              const rotated = [
+                ...orderedPlayers.slice(currentIndex),
+                ...orderedPlayers.slice(0, currentIndex),
+              ];
+              orderedPlayers.splice(0, orderedPlayers.length, ...rotated);
+            }
+            
+            const playerIndex = orderedPlayers.findIndex((p) => p.uid === reaction.fromUid);
+            
+            return (
+              <EmojiAnimation
+                key={reaction.id}
+                reaction={reaction}
+                playerIndex={playerIndex >= 0 ? playerIndex : undefined}
+                totalPlayers={players.length}
+                currentUid={currentUid}
+                onComplete={handleEmojiComplete}
+              />
+            );
+          })}
+
           <GameTable
             roomId={room.id}
             players={players}
@@ -1002,7 +1087,7 @@ export function GameRoomView({
             </DialogDescription>
           </DialogHeader>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-3 sm:gap-3">
             <Button
               type="button"
               variant="outline"
@@ -1048,8 +1133,21 @@ export function GameRoomView({
         onSelectTable={setTableThemeId}
         onSelectCard={setCardThemeId}
         onStartTableRearrange={() => setIsArrangingSeats(true)}
+        onCalculateSummary={() => {
+          setIsSkinDialogOpen(false);
+          setIsSummaryDialogOpen(true);
+        }}
         onClose={() => setIsSkinDialogOpen(false)}
       />
+
+      {Object.keys(settlements).length > 0 && (
+        <SettlementsSummaryDialog
+          isOpen={isSummaryDialogOpen}
+          onClose={() => setIsSummaryDialogOpen(false)}
+          summary={calculateSettlementsSummary(settlements)}
+          currency={tCommon("currency")}
+        />
+      )}
 
       <WinnerCelebrationOverlay
         data={winnerCelebration}

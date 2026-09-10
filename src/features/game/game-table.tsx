@@ -306,16 +306,52 @@ export function GameTable({
         </div>
       )}
 
+      {/* Table outer with blur effect on edges */}
+      <div className="absolute top-[47%] left-1/2 h-[70%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-full overflow-hidden">
+        {/* Main background image/gradient */}
+        <div
+          className="absolute inset-0 rounded-full border-4 transition-all duration-500"
+          style={{
+            ...(activeTableTheme.useImage 
+              ? {
+                  backgroundImage: `url(${activeTableTheme.imageUrl})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }
+              : {
+                  background: activeTableTheme.tableOuter,
+                }
+            ),
+            borderColor: activeTableTheme.tableBorder,
+            boxShadow: activeTableTheme.tableGlow,
+          }}
+        />
+        {/* Blurred overlay for edges only */}
+        {activeTableTheme.useImage && (
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              backgroundImage: `url(${activeTableTheme.imageUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: 'blur(5px)',
+              maskImage: 'radial-gradient(ellipse at center, transparent 0%, transparent 35%, black 70%, black 100%)',
+              WebkitMaskImage: 'radial-gradient(ellipse at center, transparent 0%, transparent 35%, black 70%, black 100%)',
+            }}
+          />
+        )}
+        {/* Dark vignette overlay for edges - adds depth */}
+        {activeTableTheme.useImage && (
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: 'radial-gradient(ellipse at center, transparent 0%, transparent 30%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.6) 90%, rgba(0,0,0,0.8) 100%)',
+            }}
+          />
+        )}
+      </div>
       <div
-        className="absolute top-[47%] left-1/2 h-[70%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-full border transition-all duration-500"
-        style={{
-          background: activeTableTheme.tableOuter,
-          borderColor: activeTableTheme.tableBorder,
-          boxShadow: activeTableTheme.tableGlow,
-        }}
-      />
-      <div
-        className="absolute top-[47%] left-1/2 h-[58%] w-[44%] -translate-x-1/2 -translate-y-1/2 rounded-full border transition-all duration-500"
+        className="absolute top-[47%] left-1/2 h-[58%] w-[44%] -translate-x-1/2 -translate-y-1/2 rounded-full border-2 transition-all duration-500"
         style={{
           background: activeTableTheme.tableInner,
           borderColor: activeTableTheme.tableBorder,

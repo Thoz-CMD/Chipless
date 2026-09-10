@@ -111,36 +111,65 @@ async function preservePlayerHistory({
   const photoUrl = player.photoUrl;
   const joinedAt = player.joinedAt;
 
-  // Build history object with only defined values
-  const historyData: Record<string, unknown> = {
-    lastSeen: Date.now(),
-  };
-  
-  if (typeof seatIndex === 'number') {
-    historyData.seatIndex = seatIndex;
-  }
-  if (typeof displayName === 'string') {
-    historyData.displayName = displayName;
-  }
-  if (typeof photoUrl === 'string') {
-    historyData.photoUrl = photoUrl;
-  }
-  if (joinedAt !== undefined) {
-    historyData.joinedAt = joinedAt;
-  }
+  // Save player's seat position to their own roomPlayerHistory
+  // This is safe because the idToken authenticates as the current user (uid)
+  // and we're only writing to roomPlayerHistory/${roomId}/${uid}
+  if (typeof seatIndex === 'number' || typeof displayName === 'string') {
+    const historyData: Record<string, unknown> = {};
+    
+    if (typeof seatIndex === 'number') {
+      historyData.seatIndex = seatIndex;
+    }
+    
+    if (typeof displayName === 'string') {
+      historyData.displayName = displayName;
+    }
+    
+    if (typeof photoUrl === 'string') {
+      historyData.photoUrl = photoUrl;
+    }
+    
+    if (typeof joinedAt === 'number' || typeof joinedAt === 'string') {
+      historyData.joinedAt = joinedAt;
+    }
 
-  // Only update if we have at least one field to update
-  if (Object.keys(historyData).length > 1) { // more than just lastSeen
+    console.log('[leave-room] Saving player history:', {
+      roomId,
+      uid,
+      historyData,
+    });
+
     const historyUrl = buildDatabaseUrl(
       databaseUrl,
       `roomPlayerHistory/${roomId}/${uid}`,
       idToken,
     );
 
-    await fetch(historyUrl, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(historyData),
+    try {
+      const response = await fetch(historyUrl, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(historyData),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[leave-room] Failed to save player history:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText,
+        });
+      } else {
+        console.log('[leave-room] Player history saved successfully');
+      }
+    } catch (error) {
+      console.error('[leave-room] Exception while saving player history:', error);
+      // Don't throw - this is not critical for leaving the room
+    }
+  } else {
+    console.log('[leave-room] No seat index or display name to save:', {
+      seatIndex,
+      displayName,
     });
   }
 }
