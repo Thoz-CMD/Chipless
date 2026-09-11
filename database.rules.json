@@ -43,6 +43,14 @@
           ".write": "auth != null"
         }
       }
+    },
+    "roomTipNotifications": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$notificationId": {
+          ".write": "auth != null"
+        }
+      }
     }
   }
 }

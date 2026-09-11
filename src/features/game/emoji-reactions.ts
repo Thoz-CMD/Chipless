@@ -1,18 +1,6 @@
 // ─── Emoji Reaction Types ─────────────────────────────────────────────────────
 
-export type EmojiType =
-  | "👍" // thumbs up
-  | "😂" // laugh
-  | "😎" // cool
-  | "🔥" // fire
-  | "💪" // strong
-  | "🤔" // thinking
-  | "😱" // shocked
-  | "🎉" // party
-  | "💯" // 100
-  | "❤️" // heart
-  | "😢" // sad
-  | "🤬"; // angry
+export type EmojiType = "sticker-1" | "sticker-spam"; // Custom stickers
 
 export type EmojiReaction = {
   id: string;
@@ -25,19 +13,18 @@ export type EmojiReaction = {
   y?: number; // Position override (0-100 percentage)
 };
 
-export const EMOJI_LIST: { emoji: EmojiType; label: string }[] = [
-  { emoji: "👍", label: "Nice!" },
-  { emoji: "😂", label: "LOL" },
-  { emoji: "😎", label: "Cool" },
-  { emoji: "🔥", label: "Fire" },
-  { emoji: "💪", label: "Strong" },
-  { emoji: "🤔", label: "Hmm" },
-  { emoji: "😱", label: "OMG" },
-  { emoji: "🎉", label: "Yeah!" },
-  { emoji: "💯", label: "Perfect" },
-  { emoji: "❤️", label: "Love" },
-  { emoji: "😢", label: "Sad" },
-  { emoji: "🤬", label: "Angry" },
+export const EMOJI_LIST: { emoji: EmojiType; label: string; image: string; isSpam?: boolean }[] = [
+  { 
+    emoji: "sticker-1", 
+    label: "ส่งเอ็มออนิว", 
+    image: "/images/stickers/ส่งเอ็มออนิวไป.png" 
+  },
+  { 
+    emoji: "sticker-spam", 
+    label: "ผู้พันเอ็มออนิว (SPAM!)", 
+    image: "/images/stickers/ผู้พันเอ็มออนิว.png",
+    isSpam: true // Special flag for spam animation
+  },
 ];
 
 // Animation variants for different emoji types
@@ -52,16 +39,6 @@ export type EmojiAnimationType = keyof typeof EMOJI_ANIMATIONS;
 
 // Get animation type based on emoji
 export function getEmojiAnimation(emoji: EmojiType): EmojiAnimationType {
-  switch (emoji) {
-    case "🔥":
-    case "💯":
-      return "pulse";
-    case "😂":
-    case "😱":
-      return "shake";
-    case "🎉":
-      return "spin";
-    default:
-      return "bounce";
-  }
+  // All stickers use bounce animation
+  return "bounce";
 }

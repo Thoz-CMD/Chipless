@@ -23,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { PlayerAvatar } from "@/features/game/player-avatar";
 import { getPlayerWinStreakStats } from "@/features/game/logic/win-streaks";
 import {
@@ -30,6 +31,7 @@ import {
   type HandSettlement,
 } from "@/features/rooms/services/settle-hand";
 import type { RoomPlayerListItem } from "@/features/rooms/services/subscribe-room-players";
+import { EMOJI_LIST, type EmojiType } from "@/features/game/emoji-reactions";
 
 function formatAmount(amount: number): string {
   const absoluteAmount = Math.abs(amount).toLocaleString("en-US");
@@ -54,6 +56,7 @@ type HeadToHeadRow = {
 
 type PlayerHandHistoryItem = {
   handNumber: number;
+  settlementKey: string;
   pot: number;
   winnerUid: string;
   winnerName: string;
@@ -93,7 +96,10 @@ function getPlayerSummaryStats({
 
   const handHistory: PlayerHandHistoryItem[] = [];
 
-  settlementList.forEach((settlement) => {
+  Object.entries(settlements)
+    .map(([key, settlement]) => ({ key, settlement }))
+    .sort((a, b) => b.settlement.handNumber - a.settlement.handNumber)
+    .forEach(({ key, settlement }) => {
     const winnerUids = getSettlementWinnerUids(settlement);
     const result = settlement.playerResults[targetUid];
     const isWinner = winnerUids.includes(targetUid);
@@ -156,6 +162,7 @@ function getPlayerSummaryStats({
 
       handHistory.push({
         handNumber: settlement.handNumber,
+        settlementKey: key,
         pot: settlement.pot,
         winnerUid: settlement.winnerUid,
         winnerName: settlement.winnerName,
@@ -213,11 +220,13 @@ export function PlayerSummaryDialog({
   players,
   currentUid,
   hostUid,
+  roomId,
   onEditProfile,
   onKick,
   isKicking,
   onTransferHost,
   isTransferringHost,
+  onSendEmoji,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -226,15 +235,21 @@ export function PlayerSummaryDialog({
   players: RoomPlayerListItem[];
   currentUid: string;
   hostUid: string;
+  roomId: string;
   onEditProfile?: () => void;
   onKick?: () => Promise<void> | void;
   isKicking?: boolean;
   onTransferHost?: () => Promise<void> | void;
   isTransferringHost?: boolean;
+  onSendEmoji?: (emoji: string, toUid: string) => void;
 }) {
   const [expandedHands, setExpandedHands] = useState<Set<number>>(new Set());
   const [confirmingKick, setConfirmingKick] = useState(false);
   const [confirmingTransferHost, setConfirmingTransferHost] = useState(false);
+  const [showingEmojiPicker, setShowingEmojiPicker] = useState(false);
+  const [showingTipForm, setShowingTipForm] = useState(false);
+  const [tipAmount, setTipAmount] = useState("");
+  const [isTipping, setIsTipping] = useState(false);
 
   if (!targetPlayer) {
     return null;
@@ -277,8 +292,40 @@ export function PlayerSummaryDialog({
     if (!nextOpen) {
       setConfirmingKick(false);
       setConfirmingTransferHost(false);
+      setShowingEmojiPicker(false);
+      setShowingTipForm(false);
+      setTipAmount("");
     }
     onOpenChange(nextOpen);
+  }
+
+  async function handleEmojiSelect(emoji: string) {
+    if (onSendEmoji && targetPlayer) {
+      onSendEmoji(emoji, targetPlayer.uid);
+      setShowingEmojiPicker(false);
+      onOpenChange(false); // Close the entire dialog
+    }
+  }
+
+  async function handleConfirmTip() {
+    if (!targetPlayer || !tipAmount) return;
+    
+    const amount = parseInt(tipAmount);
+    if (amount <= 0) return;
+
+    setIsTipping(true);
+    try {
+      const { tipPlayer } = await import("@/features/game/services/tip-player-service");
+      await tipPlayer(roomId, currentUid, targetPlayer.uid, amount);
+      
+      setShowingTipForm(false);
+      setTipAmount("");
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Failed to tip:", error);
+    } finally {
+      setIsTipping(false);
+    }
   }
 
   return (
@@ -526,6 +573,110 @@ export function PlayerSummaryDialog({
           </div>
         ) : null}
 
+        {/* Emoji and Tip buttons - show for other players only */}
+        {!isCurrentUser && !confirmingTransferHost && !confirmingKick ? (
+          <div className="grid grid-cols-2 gap-2">
+            {onSendEmoji && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowingEmojiPicker(!showingEmojiPicker)}
+                className="flex h-auto w-full items-center justify-center gap-1.5 border-white/20 bg-white/5 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10"
+              >
+                Send Emoji
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowingTipForm(!showingTipForm)}
+              className="flex h-auto w-full items-center justify-center gap-1.5 border-white/20 bg-white/5 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10"
+            >
+              ให้ทิป {targetPlayer.displayName}
+            </Button>
+          </div>
+        ) : null}
+
+        {/* Emoji Picker */}
+        {showingEmojiPicker && !isCurrentUser ? (
+          <div className="rounded-2xl border border-white/20 bg-white/5 p-4">
+            <p className="mb-3 text-sm font-semibold text-white">
+              Select Emoji to Send
+            </p>
+            <div className="grid grid-cols-4 gap-2">
+              {EMOJI_LIST.map(({ emoji, label, image }) => (
+                <button
+                  key={emoji}
+                  onClick={() => handleEmojiSelect(emoji as EmojiType)}
+                  className="flex aspect-square items-center justify-center rounded-xl border border-white/10 bg-white/5 p-2 transition-all hover:scale-110 hover:border-white/30 hover:bg-white/10 active:scale-95"
+                  title={label}
+                >
+                  <img
+                    src={image}
+                    alt={label}
+                    className="h-full w-full object-contain"
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Tip Form */}
+        {showingTipForm && !isCurrentUser ? (
+          <div className="rounded-2xl border border-white/20 bg-white/5 p-3">
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1 space-y-3">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-bold text-white">
+                    ให้ทิป {targetPlayer.displayName}
+                  </p>
+                  <p className="text-xs text-white/60">
+                    ใส่จำนวนเงินทิปที่ต้องการให้
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    type="number"
+                    placeholder="จำนวนเงิน (บาท)"
+                    value={tipAmount}
+                    onChange={(e) => setTipAmount(e.target.value)}
+                    className="border-white/20 bg-black/40 text-white placeholder:text-white/40"
+                    min="1"
+                    step="1"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setShowingTipForm(false);
+                      setTipAmount("");
+                    }}
+                    className="flex-1 border-white/20 bg-white/5 text-xs text-white hover:bg-white/10"
+                  >
+                    ยกเลิก
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!tipAmount || parseInt(tipAmount) <= 0 || isTipping}
+                    onClick={handleConfirmTip}
+                    className="flex-1 border-white/30 bg-white/10 text-xs font-semibold text-white hover:bg-white/20 disabled:opacity-40"
+                  >
+                    {isTipping ? "กำลังให้ทิป..." : "ยืนยันให้ทิป"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {/* 4 Main Stat Cards */}
         <div className="grid grid-cols-4 gap-1.5 text-center">
           <div className="rounded-xl border border-white/15 bg-white/5 p-2.5">
@@ -646,7 +797,7 @@ export function PlayerSummaryDialog({
 
                 return (
                   <div
-                    key={item.handNumber}
+                    key={item.settlementKey}
                     className="overflow-hidden rounded-xl border border-white/15 bg-white/5 transition-all"
                   >
                     <button

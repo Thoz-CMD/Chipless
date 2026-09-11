@@ -1,4 +1,5 @@
 import type { HandSettlement } from "@/features/rooms/services/settle-hand";
+import type { RoomPlayerListItem } from "@/features/rooms/services/subscribe-room-players";
 
 export type PlayerNetAmount = {
   uid: string;
@@ -23,21 +24,37 @@ export type SettlementsSummary = {
 
 /**
  * คำนวณยอดสุทธิของแต่ละผู้เล่นจาก settlements ทั้งหมด
+ * Use current player names from players array if available
  */
 export function calculatePlayerNets(
-  settlements: Record<string, HandSettlement>
+  settlements: Record<string, HandSettlement>,
+  players: RoomPlayerListItem[]
 ): PlayerNetAmount[] {
   const playerNetsMap = new Map<string, { displayName: string; netAmount: number }>();
 
+  // Build current player names map
+  const currentPlayerNames = new Map<string, string>(
+    players
+      .filter(p => p.displayName) // Filter out undefined names
+      .map(p => [p.uid, p.displayName!])
+  );
+
+  // Sort settlements by handNumber (newest first) to get latest names from history
+  const sortedSettlements = Object.values(settlements).sort(
+    (a, b) => b.handNumber - a.handNumber
+  );
+
   // รวมยอด net ของแต่ละผู้เล่นจากทุก hand
-  Object.values(settlements).forEach((settlement) => {
+  sortedSettlements.forEach((settlement) => {
     Object.values(settlement.playerResults).forEach((result) => {
       const existing = playerNetsMap.get(result.uid);
       if (existing) {
         existing.netAmount += result.net;
       } else {
+        // Use current name if available, otherwise use name from settlement
+        const displayName = currentPlayerNames.get(result.uid) ?? result.displayName;
         playerNetsMap.set(result.uid, {
-          displayName: result.displayName,
+          displayName,
           netAmount: result.net,
         });
       }
@@ -48,7 +65,8 @@ export function calculatePlayerNets(
   return Array.from(playerNetsMap.entries())
     .map(([uid, data]) => ({
       uid,
-      displayName: data.displayName,
+      // Always prefer current player name
+      displayName: currentPlayerNames.get(uid) ?? data.displayName,
       netAmount: Math.round(data.netAmount), // ปัดเศษ
     }))
     .sort((a, b) => b.netAmount - a.netAmount);
@@ -111,9 +129,10 @@ export function calculateMinimumTransfers(
  * สร้างสรุปผลการเงินทั้งหมด
  */
 export function calculateSettlementsSummary(
-  settlements: Record<string, HandSettlement>
+  settlements: Record<string, HandSettlement>,
+  players: RoomPlayerListItem[]
 ): SettlementsSummary {
-  const playerNets = calculatePlayerNets(settlements);
+  const playerNets = calculatePlayerNets(settlements, players);
   const winners = playerNets.filter((p) => p.netAmount > 0);
   const losers = playerNets.filter((p) => p.netAmount < 0);
   const transfers = calculateMinimumTransfers(playerNets);

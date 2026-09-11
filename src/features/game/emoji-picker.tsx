@@ -50,17 +50,19 @@ export function EmojiPicker({
               
               {/* Emoji Grid */}
               <div className="relative grid grid-cols-4 gap-3">
-                {EMOJI_LIST.map(({ emoji, label }) => (
+                {EMOJI_LIST.map(({ emoji, label, image }) => (
                   <button
                     key={emoji}
                     type="button"
                     onClick={() => handleEmojiClick(emoji)}
-                    className="group flex size-12 items-center justify-center rounded-lg border border-transparent text-2xl transition-all hover:scale-125 hover:border-white/30 hover:bg-white/10 active:scale-110"
+                    className="group flex size-12 items-center justify-center rounded-lg border border-transparent p-1 transition-all hover:scale-125 hover:border-white/30 hover:bg-white/10 active:scale-110"
                     title={label}
                   >
-                    <span className="transition-transform group-hover:scale-110">
-                      {emoji}
-                    </span>
+                    <img
+                      src={image}
+                      alt={label}
+                      className="h-full w-full object-contain transition-transform group-hover:scale-110"
+                    />
                   </button>
                 ))}
               </div>
