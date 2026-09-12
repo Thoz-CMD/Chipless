@@ -1,6 +1,6 @@
 // ─── Emoji Reaction Types ─────────────────────────────────────────────────────
 
-export type EmojiType = "sticker-1" | "sticker-spam"; // Custom stickers
+export type EmojiType = "sticker-1" | "sticker-spam" | "sticker-pillow-spam" | "sticker-late"; // Custom stickers
 
 export type EmojiReaction = {
   id: string;
@@ -24,6 +24,17 @@ export const EMOJI_LIST: { emoji: EmojiType; label: string; image: string; isSpa
     label: "ผู้พันเอ็มออนิว (SPAM!)", 
     image: "/images/stickers/ผู้พันเอ็มออนิว.png",
     isSpam: true // Special flag for spam animation
+  },
+  { 
+    emoji: "sticker-pillow-spam", 
+    label: "รุ่นเสยเกยหมอน (SPAM!)", 
+    image: "/images/stickers/รุ่นเสยเกยหมอน.png",
+    isSpam: true // Special flag for spam animation
+  },
+  { 
+    emoji: "sticker-late", 
+    label: "สายไปสมาชิก", 
+    image: "/images/stickers/table/สายไปสมาชิก.png" 
   },
 ];
 

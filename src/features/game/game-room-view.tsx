@@ -26,8 +26,7 @@ import type { EmojiType, EmojiReaction } from "@/features/game/emoji-reactions";
 import { sendEmoji, subscribeToEmojis } from "@/features/game/services/emoji-service";
 import { subscribeToTipNotifications } from "@/features/game/services/tip-notification-service";
 import type { TipNotification } from "@/features/game/tip-notification";
-import { TipNotificationDisplay } from "@/features/game/tip-notification";
-import { TipCoinAnimation } from "@/features/game/tip-coin-animation";
+import { TipNotificationAtPlayer } from "@/features/game/tip-notification";
 import {
   WinnerCelebrationOverlay,
   type WinnerCelebrationData,
@@ -174,12 +173,6 @@ export function GameRoomView({
     useState<ExtinguishedWinStreak | null>(null);
   const [activeEmojis, setActiveEmojis] = useState<EmojiReaction[]>([]);
   const [tipNotifications, setTipNotifications] = useState<TipNotification[]>([]);
-  const [activeTipCoins, setActiveTipCoins] = useState<Array<{
-    id: string;
-    fromUid: string;
-    toUid: string;
-    amount: number;
-  }>>([]);
   const isHost = room.hostUid === currentUid;
   const isGameStarted = room.status === "playing";
   const holdemGameState = room.gameState?.hand ?? null;
@@ -334,26 +327,8 @@ export function GameRoomView({
       (notification) => {
         console.log("[game-room] Tip notification received:", notification);
         
-        // Show notification toast only for recipient
-        if (notification.toUid === currentUid) {
-          setTipNotifications((prev) => [...prev, notification]);
-        }
-        
-        // Show coin animation for everyone
-        setActiveTipCoins((prev) => {
-          console.log("[game-room] Adding coin animation:", {
-            id: notification.id,
-            fromUid: notification.fromUid,
-            toUid: notification.toUid,
-            amount: notification.amount,
-          });
-          return [...prev, {
-            id: notification.id,
-            fromUid: notification.fromUid,
-            toUid: notification.toUid,
-            amount: notification.amount,
-          }];
-        });
+        // Show notification for everyone at recipient's avatar
+        setTipNotifications((prev) => [...prev, notification]);
       }
     );
 
@@ -363,11 +338,6 @@ export function GameRoomView({
   // Handle tip notification dismissal
   const handleTipNotificationComplete = (id: string) => {
     setTipNotifications((prev) => prev.filter((notif) => notif.id !== id));
-  };
-
-  // Handle tip coin animation complete
-  const handleTipCoinComplete = (id: string) => {
-    setActiveTipCoins((prev) => prev.filter((coin) => coin.id !== id));
   };
 
   // Handle emoji removal after animation completes
@@ -828,52 +798,19 @@ export function GameRoomView({
             }
             
             const playerIndex = orderedPlayers.findIndex((p) => p.uid === reaction.fromUid);
+            const recipientIndex = reaction.toUid 
+              ? orderedPlayers.findIndex((p) => p.uid === reaction.toUid)
+              : undefined;
             
             return (
               <EmojiAnimation
                 key={reaction.id}
                 reaction={reaction}
                 playerIndex={playerIndex >= 0 ? playerIndex : undefined}
+                recipientIndex={recipientIndex !== undefined && recipientIndex >= 0 ? recipientIndex : undefined}
                 totalPlayers={players.length}
                 currentUid={currentUid}
                 onComplete={handleEmojiComplete}
-              />
-            );
-          })}
-
-          {/* Tip Coin Animations */}
-          {activeTipCoins.map((coin) => {
-            // Same player ordering logic
-            const orderedPlayers = [...players].sort((a, b) => {
-              const aIndex = a.seatIndex ?? Number.MAX_SAFE_INTEGER;
-              const bIndex = b.seatIndex ?? Number.MAX_SAFE_INTEGER;
-              if (aIndex !== bIndex) return aIndex - bIndex;
-              return (a.joinedAt ?? 0) - (b.joinedAt ?? 0);
-            });
-            
-            const currentIndex = orderedPlayers.findIndex((p) => p.uid === currentUid);
-            if (currentIndex > 0) {
-              const rotated = [
-                ...orderedPlayers.slice(currentIndex),
-                ...orderedPlayers.slice(0, currentIndex),
-              ];
-              orderedPlayers.splice(0, orderedPlayers.length, ...rotated);
-            }
-            
-            const fromPlayerIndex = orderedPlayers.findIndex((p) => p.uid === coin.fromUid);
-            const toPlayerIndex = orderedPlayers.findIndex((p) => p.uid === coin.toUid);
-            
-            if (fromPlayerIndex === -1 || toPlayerIndex === -1) return null;
-            
-            return (
-              <TipCoinAnimation
-                key={coin.id}
-                id={coin.id}
-                fromPlayerIndex={fromPlayerIndex}
-                toPlayerIndex={toPlayerIndex}
-                totalPlayers={orderedPlayers.length}
-                amount={coin.amount}
-                onComplete={handleTipCoinComplete}
               />
             );
           })}
@@ -913,8 +850,11 @@ export function GameRoomView({
             onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
             tableTheme={tableTheme}
             cardTheme={cardTheme}
+            settlements={settlements}
             isArrangingSeats={isArrangingSeats}
             onExitRearrangeSeats={() => setIsArrangingSeats(false)}
+            tipNotifications={tipNotifications}
+            onTipNotificationComplete={handleTipNotificationComplete}
           />
         </div>
       </div>
@@ -1250,11 +1190,6 @@ export function GameRoomView({
       <WinnerCelebrationOverlay
         data={winnerCelebration}
         onComplete={() => setWinnerCelebration(null)}
-      />
-
-      <TipNotificationDisplay
-        notifications={tipNotifications}
-        onComplete={handleTipNotificationComplete}
       />
       </div>
     </div>

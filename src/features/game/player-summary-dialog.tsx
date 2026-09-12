@@ -84,6 +84,15 @@ function getPlayerSummaryStats({
   const playerNamesByUid = new Map(players.map((p) => [p.uid, p.displayName]));
   const playerPhotosByUid = new Map(players.map((p) => [p.uid, p.photoUrl]));
 
+  // Also collect names from settlements for players who left
+  Object.values(settlements).forEach((settlement) => {
+    Object.values(settlement.playerResults).forEach((result) => {
+      if (!playerNamesByUid.has(result.uid) && result.displayName) {
+        playerNamesByUid.set(result.uid, result.displayName);
+      }
+    });
+  });
+
   let totalNet = 0;
   let handsPlayed = 0;
   let handsWon = 0;
@@ -318,11 +327,15 @@ export function PlayerSummaryDialog({
       const { tipPlayer } = await import("@/features/game/services/tip-player-service");
       await tipPlayer(roomId, currentUid, targetPlayer.uid, amount);
       
+      // Reset form state
       setShowingTipForm(false);
       setTipAmount("");
+      
+      // Close dialog immediately
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to tip:", error);
+      // Don't close dialog on error so user can try again
     } finally {
       setIsTipping(false);
     }
@@ -330,7 +343,7 @@ export function PlayerSummaryDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleDialogOpenChange}>
-      <DialogContent className="max-h-[80vh] overflow-y-auto border-white/35 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.16)] sm:max-w-md top-[10%] translate-y-0">
+      <DialogContent className="flex max-h-[80vh] flex-col overflow-hidden border-white/35 bg-black/95 text-white shadow-[0_0_32px_rgba(255,255,255,0.16)] sm:max-w-md top-[10%] translate-y-0">
         <DialogHeader className="text-left">
           <DialogTitle className="sr-only">
             {targetPlayer.displayName}&apos;s Game Summary
@@ -340,8 +353,10 @@ export function PlayerSummaryDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Player Profile Header */}
-        <div className="flex items-center gap-4 rounded-2xl border border-white/20 bg-white/5 p-4 shadow-[inset_0_0_20px_rgba(255,255,255,0.04)]">
+        {/* Sticky Header Section */}
+        <div className="sticky top-0 z-10 -mx-6 -mt-6 space-y-3 bg-black/95 px-6 pt-6 pb-3 backdrop-blur-sm border-b border-white/10">
+          {/* Player Profile Header */}
+          <div className="flex items-center gap-4 rounded-2xl border border-white/20 bg-white/5 p-4 shadow-[inset_0_0_20px_rgba(255,255,255,0.04)]">
           <div className="shrink-0">
             <PlayerAvatar
               uid={targetPlayer.uid}
@@ -432,78 +447,95 @@ export function PlayerSummaryDialog({
 
         {canTransferHost || canKick ? (
           <div className="space-y-2">
-            {canTransferHost ? (
-              confirmingTransferHost ? (
-                <div className="rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
-                      <Crown className="size-4" />
+            {/* Transfer Host and Kick buttons in grid */}
+            {!confirmingTransferHost && !confirmingKick ? (
+              <div className="grid grid-cols-2 gap-2">
+                {canTransferHost ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmingTransferHost(true)}
+                    className="flex h-auto w-full items-center justify-center border-amber-400/30 bg-black/90 px-3 py-2 text-xs font-semibold text-amber-300 shadow-[inset_0_0_12px_rgba(251,191,36,0.08)] hover:bg-black/70 hover:text-amber-200"
+                  >
+                    Make Host
+                  </Button>
+                ) : null}
+
+                {canKick ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConfirmingKick(true)}
+                    className="flex h-auto w-full items-center justify-center border-rose-500/30 bg-black/90 px-3 py-2 text-xs font-semibold text-rose-300 shadow-[inset_0_0_12px_rgba(244,63,94,0.08)] hover:bg-black/70 hover:text-rose-200"
+                  >
+                    Kick Player
+                  </Button>
+                ) : null}
+              </div>
+            ) : null}
+
+            {/* Transfer Host Confirmation - Full Width */}
+            {confirmingTransferHost ? (
+              <div className="rounded-2xl border border-amber-400/40 bg-amber-400/10 p-3">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
+                    <Crown className="size-4" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-bold text-amber-200">
+                        Make {targetPlayer.displayName} the host?
+                      </p>
+                      <p className="text-xs text-white/60">
+                        They will be able to start hands, settle winners,
+                        arrange seats, kick players, and delete the room.
+                      </p>
                     </div>
-                    <div className="min-w-0 flex-1 space-y-3">
-                      <div className="space-y-0.5">
-                        <p className="text-sm font-bold text-amber-200">
-                          Make {targetPlayer.displayName} the host?
-                        </p>
-                        <p className="text-xs text-white/60">
-                          They will be able to start hands, settle winners,
-                          arrange seats, kick players, and delete the room.
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={isTransferringHost}
-                          onClick={() => setConfirmingTransferHost(false)}
-                          className="flex-1 border-white/20 bg-white/5 text-xs text-white hover:bg-white/10"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          disabled={isTransferringHost}
-                          onClick={async () => {
-                            try {
-                              await onTransferHost?.();
-                            } finally {
-                              setConfirmingTransferHost(false);
-                            }
-                          }}
-                          className="flex-1 border-amber-400/40 bg-amber-400/20 text-xs font-semibold text-amber-100 hover:bg-amber-400/30 hover:text-amber-50"
-                        >
-                          {isTransferringHost ? (
-                            <span className="animate-pulse">Changing...</span>
-                          ) : (
-                            <>
-                              <Crown className="size-3.5" />
-                              Confirm
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isTransferringHost}
+                        onClick={() => setConfirmingTransferHost(false)}
+                        className="flex-1 border-white/20 bg-white/5 text-xs text-white hover:bg-white/10"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isTransferringHost}
+                        onClick={async () => {
+                          try {
+                            await onTransferHost?.();
+                          } finally {
+                            setConfirmingTransferHost(false);
+                          }
+                        }}
+                        className="flex-1 border-amber-400/40 bg-amber-400/20 text-xs font-semibold text-amber-100 hover:bg-amber-400/30 hover:text-amber-50"
+                      >
+                        {isTransferringHost ? (
+                          <span className="animate-pulse">Changing...</span>
+                        ) : (
+                          <>
+                            <Crown className="size-3.5" />
+                            Confirm
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </div>
                 </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setConfirmingTransferHost(true)}
-                  className="flex h-auto w-full items-center justify-center gap-1.5 border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-300 shadow-[inset_0_0_12px_rgba(251,191,36,0.08)] hover:bg-amber-400/20 hover:text-amber-200"
-                >
-                  <Crown className="size-3.5" />
-                  Make Host
-                </Button>
-              )
+              </div>
             ) : null}
 
-            {canKick ? (
-              confirmingKick ? (
-                <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-3">
+            {/* Kick Confirmation - Full Width */}
+            {confirmingKick ? (
+              <div className="rounded-2xl border border-rose-500/40 bg-rose-500/10 p-3">
                 <div className="flex items-start gap-3">
                   <div className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-rose-500/20 text-rose-400">
                     <AlertTriangle className="size-4" />
@@ -556,19 +588,7 @@ export function PlayerSummaryDialog({
                     </div>
                   </div>
                 </div>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setConfirmingKick(true)}
-                  className="flex h-auto w-full items-center justify-center gap-1.5 border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs font-semibold text-rose-300 shadow-[inset_0_0_12px_rgba(244,63,94,0.08)] hover:bg-rose-500/20 hover:text-rose-200"
-                >
-                  <UserX className="size-3.5" />
-                  Kick Player from Room
-                </Button>
-              )
+              </div>
             ) : null}
           </div>
         ) : null}
@@ -582,7 +602,7 @@ export function PlayerSummaryDialog({
                 variant="outline"
                 size="sm"
                 onClick={() => setShowingEmojiPicker(!showingEmojiPicker)}
-                className="flex h-auto w-full items-center justify-center gap-1.5 border-white/20 bg-white/5 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10"
+                className="flex h-auto w-full items-center justify-center gap-1.5 border-white/20 bg-black/90 px-3 py-2 text-xs font-semibold text-white hover:bg-black/70"
               >
                 Send Emoji
               </Button>
@@ -598,7 +618,11 @@ export function PlayerSummaryDialog({
             </Button>
           </div>
         ) : null}
+        </div>
+        {/* End of Sticky Header */}
 
+        {/* Scrollable Content */}
+        <div className="flex-1 space-y-4 overflow-y-auto px-1">
         {/* Emoji Picker */}
         {showingEmojiPicker && !isCurrentUser ? (
           <div className="rounded-2xl border border-white/20 bg-white/5 p-4">
@@ -637,39 +661,25 @@ export function PlayerSummaryDialog({
                     ใส่จำนวนเงินทิปที่ต้องการให้
                   </p>
                 </div>
-                <div className="space-y-2">
+                <div className="flex items-center gap-2">
                   <Input
                     type="number"
                     placeholder="จำนวนเงิน (บาท)"
                     value={tipAmount}
                     onChange={(e) => setTipAmount(e.target.value)}
-                    className="border-white/20 bg-black/40 text-white placeholder:text-white/40"
+                    className="flex-1 border-white/20 bg-black/40 text-white placeholder:text-white/40"
                     min="1"
                     step="1"
                   />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowingTipForm(false);
-                      setTipAmount("");
-                    }}
-                    className="flex-1 border-white/20 bg-white/5 text-xs text-white hover:bg-white/10"
-                  >
-                    ยกเลิก
-                  </Button>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     disabled={!tipAmount || parseInt(tipAmount) <= 0 || isTipping}
                     onClick={handleConfirmTip}
-                    className="flex-1 border-white/30 bg-white/10 text-xs font-semibold text-white hover:bg-white/20 disabled:opacity-40"
+                    className="border-white/30 bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20 disabled:opacity-40"
                   >
-                    {isTipping ? "กำลังให้ทิป..." : "ยืนยันให้ทิป"}
+                    {isTipping ? "กำลังให้ทิป" : "ยืนยัน"}
                   </Button>
                 </div>
               </div>
@@ -794,6 +804,8 @@ export function PlayerSummaryDialog({
             <div className="space-y-2">
               {stats.handHistory.map((item) => {
                 const isExpanded = expandedHands.has(item.handNumber);
+                const isTip = item.handNumber < 0;
+                const displayNumber = Math.abs(item.handNumber);
 
                 return (
                   <div
@@ -808,12 +820,16 @@ export function PlayerSummaryDialog({
                       <div className="flex min-w-0 items-center gap-2.5 pr-2">
                         <div
                           className={`flex size-6 shrink-0 items-center justify-center rounded-lg ${
-                            item.isWinner
+                            isTip
+                              ? "bg-amber-500/20 text-amber-400"
+                              : item.isWinner
                               ? "bg-emerald-500/20 text-emerald-400"
                               : "bg-rose-500/20 text-rose-400"
                           }`}
                         >
-                          {item.isWinner ? (
+                          {isTip ? (
+                            <span className="text-sm">💰</span>
+                          ) : item.isWinner ? (
                             <TrendingUp className="size-3.5" />
                           ) : (
                             <TrendingDown className="size-3.5" />
@@ -822,8 +838,8 @@ export function PlayerSummaryDialog({
 
                         <div className="min-w-0">
                           <p className="truncate text-xs font-bold text-white">
-                            Hand #{item.handNumber}
-                            {item.isWinner ? (
+                            {isTip ? "Tip" : "Hand"} #{displayNumber}
+                            {!isTip && item.isWinner ? (
                               <span className="py-0.2 ml-1.5 rounded bg-emerald-500/20 px-1 text-[10px] font-semibold text-emerald-300">
                                 Won Pot
                               </span>
@@ -858,7 +874,7 @@ export function PlayerSummaryDialog({
                     {isExpanded ? (
                       <div className="space-y-1.5 border-t border-white/10 bg-black/40 p-3">
                         <p className="text-[10px] font-bold tracking-wider text-white/40 uppercase">
-                          Hand Breakdown
+                          {isTip ? "Tip" : "Hand"} Breakdown
                         </p>
                         {item.allResults.map((r) => (
                           <div
@@ -871,7 +887,7 @@ export function PlayerSummaryDialog({
                           >
                             <span className="truncate pr-2">
                               {r.displayName}
-                              {r.isWinner ? (
+                              {!isTip && r.isWinner ? (
                                 <span className="ml-1 text-[10px] font-semibold text-emerald-400">
                                   (Winner)
                                 </span>
@@ -898,6 +914,8 @@ export function PlayerSummaryDialog({
             </div>
           )}
         </div>
+        </div>
+        {/* End of Scrollable Content */}
       </DialogContent>
     </Dialog>
   );

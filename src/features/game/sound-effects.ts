@@ -105,8 +105,10 @@ export function primeGameSounds() {
     return;
   }
 
+  // Resume audio context after user gesture
   void context.resume().catch(() => {
-    // Browsers can require a user gesture before audio starts.
+    // Silently fail - browsers require user gesture before audio starts
+    // This is expected behavior and not an error
   });
 }
 
@@ -132,10 +134,13 @@ async function playSound(
     return;
   }
 
+  // Only try to resume if context is suspended
   if (context.state === "suspended") {
     try {
       await context.resume();
-    } catch {
+    } catch (error) {
+      // Browser requires user gesture - silently fail
+      // The user gesture listener in use-game-sound-effects will handle this
       return;
     }
   }

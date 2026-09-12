@@ -39,6 +39,7 @@
     "roomEmojis": {
       "$roomId": {
         ".read": "auth != null",
+        ".indexOn": ["timestamp"],
         "$emojiId": {
           ".write": "auth != null"
         }
@@ -47,6 +48,7 @@
     "roomTipNotifications": {
       "$roomId": {
         ".read": "auth != null",
+        ".indexOn": ["timestamp"],
         "$notificationId": {
           ".write": "auth != null"
         }

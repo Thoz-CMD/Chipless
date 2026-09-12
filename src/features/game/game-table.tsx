@@ -13,6 +13,7 @@ import type {
 import type { ExtinguishedWinStreak } from "@/features/game/logic/win-streaks";
 import { PlayerSeat } from "@/features/game/player-seat";
 import type { RoomPlayerListItem } from "@/features/rooms/services/subscribe-room-players";
+import type { TipNotification } from "@/features/game/tip-notification";
 import {
   updatePlayerSeatOrder,
   UpdatePlayerSeatsError,
@@ -135,6 +136,9 @@ export function GameTable({
   onSelectPlayer,
   tableTheme,
   cardTheme,
+  tipNotifications = [],
+  onTipNotificationComplete,
+  settlements,
 }: {
   players: RoomPlayerListItem[];
   currentUid?: string;
@@ -161,6 +165,9 @@ export function GameTable({
   onSelectPlayer?: (player: RoomPlayerListItem) => void;
   tableTheme?: TableTheme;
   cardTheme?: CardTheme;
+  tipNotifications?: TipNotification[];
+  onTipNotificationComplete?: (id: string) => void;
+  settlements?: Record<string, any>; // Hand settlement data for calculating ranks
 }) {
   const activeTableTheme: TableTheme = tableTheme ?? TABLE_THEMES[DEFAULT_TABLE_ID];
   const [selectedSeatUid, setSelectedSeatUid] = useState<string | null>(null);
@@ -176,6 +183,33 @@ export function GameTable({
       getSeatCoordinates(index, seatedPlayers.length),
     ]),
   );
+
+  // Calculate player ranks based on total net from settlements
+  const playerRanksByUid = new Map<string, number>();
+  if (settlements) {
+    const totalsByUid = new Map<string, number>();
+    
+    // Initialize all players with 0
+    players.forEach((p) => totalsByUid.set(p.uid, 0));
+    
+    // Sum up all settlements
+    Object.values(settlements).forEach((settlement: any) => {
+      Object.values(settlement.playerResults || {}).forEach((result: any) => {
+        const currentTotal = totalsByUid.get(result.uid) ?? 0;
+        totalsByUid.set(result.uid, currentTotal + (result.net || 0));
+      });
+    });
+    
+    // Sort by total and assign ranks
+    const rankedUids = Array.from(totalsByUid.entries())
+      .sort((a, b) => b[1] - a[1]) // Sort descending by total
+      .map(([uid]) => uid);
+    
+    rankedUids.forEach((uid, index) => {
+      playerRanksByUid.set(uid, index + 1); // Rank starts from 1
+    });
+  }
+
   const playerUids = new Set(players.map((player) => player.uid));
   const bigBlindUid =
     currentBigBlindUid && playerUids.has(currentBigBlindUid)
@@ -401,53 +435,79 @@ export function GameTable({
         </div>
       </div>
 
-      {seatedPlayers.map((player, index) => (
-        <PlayerSeat
-          key={player.uid}
-          player={player}
-          isCurrentUser={player.uid === currentUid}
-          isDealer={player.uid === dealerUid}
-          isCurrentTurn={player.uid === currentTurnUid}
-          hasFolded={foldedUids?.has(player.uid)}
-          isWaitingForNextHand={
-            activeHandPlayerUids !== undefined &&
-            !activeHandPlayerUids.has(player.uid) &&
-            actionLog !== undefined && actionLog.length > 0
-          }
-          winStreak={winStreaksByUid?.[player.uid]}
-          isExtinguishing={extinguishAnimation?.extinguishedUids.includes(
-            player.uid,
-          )}
-          winnerAmount={winnerAmountsByUid?.[player.uid]}
-          lastAction={lastActionByUid.get(player.uid)}
-          lastActionAmount={lastActionAmountByUid.get(player.uid)}
-          style={getSeatPosition(
-            seatCoordinatesByUid.get(player.uid) ??
-              getSeatCoordinates(index, seatedPlayers.length),
-          )}
-          seatCoordinates={seatCoordinatesByUid.get(player.uid) ??
-              getSeatCoordinates(index, seatedPlayers.length)}
-          isSelected={isArrangingSeats && selectedSeatUid === player.uid}
-          isArrangingSeats={isArrangingSeats}
-          onClick={() => {
-            if (isArrangingSeats) {
-              if (!selectedSeatUid) {
-                // Select 1st player
-                setSelectedSeatUid(player.uid);
-              } else if (selectedSeatUid === player.uid) {
-                // Deselect
-                setSelectedSeatUid(null);
-              } else {
-                // Swap with 2nd player
-                void swapSeats(player.uid);
-              }
-              return;
+      {seatedPlayers.map((player, index) => {
+        // Find tip notification for this player (receiver)
+        const playerTipNotification = tipNotifications.find(
+          (notif) => notif.toUid === player.uid
+        );
+
+        // Find tip notification sent by this player (sender)
+        const senderTipNotification = tipNotifications.find(
+          (notif) => notif.fromUid === player.uid
+        );
+
+        // Get recipient name for sender notification
+        const senderNotificationData = senderTipNotification
+          ? {
+              notification: senderTipNotification,
+              toName:
+                players.find((p) => p.uid === senderTipNotification.toUid)
+                  ?.displayName ?? "Unknown",
             }
+          : null;
+
+        return (
+          <PlayerSeat
+            key={player.uid}
+            player={player}
+            isCurrentUser={player.uid === currentUid}
+            isDealer={player.uid === dealerUid}
+            isCurrentTurn={player.uid === currentTurnUid}
+            hasFolded={foldedUids?.has(player.uid)}
+            isWaitingForNextHand={
+              activeHandPlayerUids !== undefined &&
+              !activeHandPlayerUids.has(player.uid) &&
+              actionLog !== undefined && actionLog.length > 0
+            }
+            winStreak={winStreaksByUid?.[player.uid]}
+            isExtinguishing={extinguishAnimation?.extinguishedUids.includes(
+              player.uid,
+            )}
+            winnerAmount={winnerAmountsByUid?.[player.uid]}
+            lastAction={lastActionByUid.get(player.uid)}
+            lastActionAmount={lastActionAmountByUid.get(player.uid)}
+            rank={playerRanksByUid.get(player.uid)}
+            style={getSeatPosition(
+              seatCoordinatesByUid.get(player.uid) ??
+                getSeatCoordinates(index, seatedPlayers.length),
+            )}
+            seatCoordinates={seatCoordinatesByUid.get(player.uid) ??
+                getSeatCoordinates(index, seatedPlayers.length)}
+            isSelected={isArrangingSeats && selectedSeatUid === player.uid}
+            isArrangingSeats={isArrangingSeats}
+            tipNotification={playerTipNotification ?? null}
+            senderTipNotification={senderNotificationData}
+            onTipNotificationComplete={onTipNotificationComplete}
+            onClick={() => {
+              if (isArrangingSeats) {
+                if (!selectedSeatUid) {
+                  // Select 1st player
+                  setSelectedSeatUid(player.uid);
+                } else if (selectedSeatUid === player.uid) {
+                  // Deselect
+                  setSelectedSeatUid(null);
+                } else {
+                  // Swap with 2nd player
+                  void swapSeats(player.uid);
+                }
+                return;
+              }
 
             onSelectPlayer?.(player);
           }}
         />
-      ))}
+      );
+      })}
     </section>
   );
 }

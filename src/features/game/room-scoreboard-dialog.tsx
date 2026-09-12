@@ -71,6 +71,7 @@ type PersonalHandHistoryRow = {
   rows: PersonalLedgerRow[];
   net: number;
   settlement: HandSettlement;
+  settlementKey: string;
 };
 
 function getPersonalRowsForSettlement({
@@ -167,12 +168,13 @@ function getPersonalHistoryRows({
   currentUid: string;
 }): PersonalHandHistoryRow[] {
   return settlementList
-    .map((settlement) => ({
+    .map((settlement, index) => ({
       handNumber: settlement.handNumber,
       pot: settlement.pot,
       winnerName: settlement.winnerName,
       rows: getPersonalRowsForSettlement({ settlement, currentUid }),
       settlement,
+      settlementKey: `settlement-${settlement.handNumber}-${index}`,
     }))
     .map((settlement) => ({
       ...settlement,
@@ -511,7 +513,7 @@ export function RoomScoreboardDialog({
 
                 return (
                   <div
-                    key={historyRow.handNumber}
+                    key={historyRow.settlementKey}
                     className="rounded-lg border border-white/15 bg-white/5 px-3 py-2.5 transition-colors hover:bg-white/[0.07]"
                   >
                     <button

@@ -1,6 +1,8 @@
 import { PlayerAvatar } from "@/features/game/player-avatar";
 import type { RoomPlayerListItem } from "@/features/rooms/services/subscribe-room-players";
 import type { CSSProperties } from "react";
+import type { TipNotification } from "@/features/game/tip-notification";
+import { TipNotificationAtPlayer, TipNotificationAtSender } from "@/features/game/tip-notification";
 
 export function PlayerSeat({
   player,
@@ -14,12 +16,16 @@ export function PlayerSeat({
   winnerAmount,
   lastAction,
   lastActionAmount,
+  rank,
   style,
   seatCoordinates,
   isSelected,
   isArrangingSeats,
   isDragTarget,
   onClick,
+  tipNotification,
+  senderTipNotification,
+  onTipNotificationComplete,
 }: {
   player: RoomPlayerListItem;
   isCurrentUser: boolean;
@@ -32,12 +38,16 @@ export function PlayerSeat({
   winnerAmount?: number;
   lastAction?: string;
   lastActionAmount?: string;
+  rank?: number;
   style: CSSProperties;
   seatCoordinates?: { x: number; y: number };
   isSelected?: boolean;
   isArrangingSeats?: boolean;
   isDragTarget?: boolean;
   onClick?: () => void;
+  tipNotification?: TipNotification | null;
+  senderTipNotification?: { notification: TipNotification; toName: string } | null;
+  onTipNotificationComplete?: (id: string) => void;
 }) {
   const name = player.displayName ?? "Unnamed";
   const isOffline = player.online === false;
@@ -131,6 +141,14 @@ export function PlayerSeat({
             hasFolded={hasFolded}
           />
         </div>
+
+        {/* Rank Badge - Top Left */}
+        {rank !== undefined ? (
+          <div className="pointer-events-none absolute -top-1 -left-1 z-50 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-[10px] font-black text-black shadow-[0_2px_8px_rgba(0,0,0,0.5)] ring-2 ring-black/30">
+            #{rank}
+          </div>
+        ) : null}
+
         {isWaitingForNextHand ? (
           <div className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full border border-white/25 bg-black/85 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-[0_0_10px_rgba(255,255,255,0.12)]">
             Waiting
@@ -166,6 +184,23 @@ export function PlayerSeat({
             <div className="whitespace-nowrap text-center text-[9px] font-bold leading-none">{lastActionAmount}</div>
           ) : null}
         </div>
+      ) : null}
+
+      {/* Tip notification at player avatar */}
+      {tipNotification && onTipNotificationComplete ? (
+        <TipNotificationAtPlayer
+          notification={tipNotification}
+          onComplete={onTipNotificationComplete}
+        />
+      ) : null}
+
+      {/* Sender tip notification (blue card) */}
+      {senderTipNotification && onTipNotificationComplete ? (
+        <TipNotificationAtSender
+          notification={senderTipNotification.notification}
+          toName={senderTipNotification.toName}
+          onComplete={onTipNotificationComplete}
+        />
       ) : null}
     </div>
   );
