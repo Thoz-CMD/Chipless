@@ -15,6 +15,7 @@ export function PlayerSeat({
   isCurrentUser,
   isDealer,
   isCurrentTurn,
+  isWinner = false,
   hasFolded,
   isWaitingForNextHand,
   winStreak,
@@ -39,6 +40,7 @@ export function PlayerSeat({
   isCurrentUser: boolean;
   isDealer: boolean;
   isCurrentTurn: boolean;
+  isWinner?: boolean;
   hasFolded?: boolean;
   isWaitingForNextHand?: boolean;
   winStreak?: number;
@@ -148,8 +150,10 @@ export function PlayerSeat({
           </div>
         ) : null}
         <div
-            className={`relative z-20 ${
-              isSelected
+          className={`relative z-20 ${
+            isWinner
+              ? "rounded-full shadow-[0_0_12px_4px_rgba(249,115,22,0.95),0_0_30px_10px_rgba(245,158,11,0.75)] ring-4 ring-orange-300 ring-offset-2 ring-offset-black"
+              : isSelected
                 ? "animate-pulse rounded-full shadow-[0_0_24px_rgba(245,158,11,0.95)] ring-4 ring-amber-400 ring-offset-2 ring-offset-black"
                 : isArrangingSeats
                   ? "rounded-full shadow-[0_0_16px_rgba(56,189,248,0.75)] ring-2 ring-sky-400 ring-offset-2 ring-offset-black transition-all hover:ring-sky-300"
@@ -157,20 +161,20 @@ export function PlayerSeat({
                     ? "scale-105 rounded-full shadow-[0_0_20px_rgba(14,165,233,0.7)] ring-2 ring-sky-400/90 ring-offset-2 ring-offset-black"
                   : ""
             }`}
-          >
-            <PlayerAvatar
-              uid={player.uid}
-              name={name}
-              photoUrl={player.photoUrl}
-              winStreak={winStreak}
-              isCurrentUser={isCurrentUser}
-              isDealer={isDealer && !isWaitingForNextHand}
-              isCurrentTurn={isCurrentTurn && !isWaitingForNextHand}
-              hasFolded={hasFolded}
-              sizeClassName="size-11 sm:size-12"
-              hideBadges={hideAvatarBadges}
-            />
-          </div>
+        >
+          <PlayerAvatar
+            uid={player.uid}
+            name={name}
+            photoUrl={player.photoUrl}
+            winStreak={winStreak}
+            isCurrentUser={isCurrentUser}
+            isDealer={isDealer && !isWaitingForNextHand}
+            isCurrentTurn={isCurrentTurn && !isWaitingForNextHand}
+            hasFolded={hasFolded}
+            sizeClassName="size-11 sm:size-12"
+            hideBadges={hideAvatarBadges}
+          />
+        </div>
 
         {isWaitingForNextHand ? (
           <div className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full border border-white/25 bg-black/85 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-[0_0_10px_rgba(255,255,255,0.12)]">

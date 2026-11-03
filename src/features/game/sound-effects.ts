@@ -110,6 +110,14 @@ export function primeGameSounds() {
     // Silently fail - browsers require user gesture before audio starts
     // This is expected behavior and not an error
   });
+
+  void Promise.all(
+    (Object.keys(soundSources) as SoundName[]).map((soundName) =>
+      loadSoundBuffer(soundName),
+    ),
+  ).catch(() => {
+    // A failed preload can be retried when the sound is played.
+  });
 }
 
 async function playSound(
@@ -128,7 +136,12 @@ async function playSound(
     return;
   }
 
-  const buffer = await loadSoundBuffer(soundName);
+  let buffer: AudioBuffer | null;
+  try {
+    buffer = await loadSoundBuffer(soundName);
+  } catch {
+    return;
+  }
 
   if (!buffer) {
     return;
@@ -174,7 +187,7 @@ export function playCardSound() {
 }
 
 export function playTurnAlertSound() {
-  void playSound("turn");
+  void playSound("turn", { ignoreCooldown: true });
 }
 
 export function playWinnerSound() {

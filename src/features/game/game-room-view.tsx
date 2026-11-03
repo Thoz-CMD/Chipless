@@ -266,6 +266,11 @@ export function GameRoomView({
   const latestSettlement = Object.values(settlements).sort(
     (first, second) => second.handNumber - first.handNumber,
   )[0];
+  const settledWinnerUids =
+    holdemGameState?.bettingRound === "summary" &&
+    latestSettlement?.handNumber === handNumber
+      ? new Set(getSettlementWinnerUids(latestSettlement))
+      : undefined;
   const observedLatestSettlementHandRef = useRef<number | null>(
     latestSettlement?.handNumber ?? 0,
   );
@@ -1009,7 +1014,7 @@ export function GameRoomView({
 
         {/* Game Table - Flexible space, centered */}
         <div className="flex flex-1 items-center justify-center overflow-visible py-2">
-          <div className="relative aspect-[4/4.5] w-full max-w-[430px] md:max-w-[600px] lg:max-w-[430px]">
+          <div className="relative -translate-y-8 aspect-[4/4.5] w-full max-w-[430px] md:max-w-[600px] md:translate-y-0 lg:max-w-[430px]">
             {/* Emoji Animations Overlay */}
             {activeEmojis.map((reaction) => {
               // Find player's position in the seated order (relative to current user)
@@ -1094,6 +1099,7 @@ export function GameRoomView({
               winStreaksByUid={winStreaksByUid}
               extinguishAnimation={extinguishAnimation}
               winnerAmountsByUid={winnerAmountAnimation?.amountsByUid}
+              winnerUids={settledWinnerUids}
               onSelectPlayer={(player) => setSelectedPlayerForSummary(player)}
               tableTheme={tableTheme}
               cardTheme={cardTheme}

@@ -156,6 +156,7 @@ export function GameTable({
   winStreaksByUid,
   extinguishAnimation,
   winnerAmountsByUid,
+  winnerUids,
   onSelectPlayer,
   tableTheme,
   cardTheme,
@@ -188,6 +189,7 @@ export function GameTable({
   winStreaksByUid?: Record<string, number>;
   extinguishAnimation?: ExtinguishedWinStreak | null;
   winnerAmountsByUid?: Record<string, number>;
+  winnerUids?: ReadonlySet<string>;
   onSelectPlayer?: (player: RoomPlayerListItem) => void;
   tableTheme?: TableTheme;
   cardTheme?: CardTheme;
@@ -506,6 +508,10 @@ export function GameTable({
             isCurrentUser={player.uid === currentUid}
             isDealer={player.uid === dealerUid}
             isCurrentTurn={player.uid === currentTurnUid}
+            isWinner={
+              winnerUids?.has(player.uid) === true ||
+              winnerAmountsByUid?.[player.uid] !== undefined
+            }
             hasFolded={foldedUids?.has(player.uid)}
             isWaitingForNextHand={
               activeHandPlayerUids !== undefined &&

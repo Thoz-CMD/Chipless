@@ -128,6 +128,16 @@ function getLatestSettlementHandNumber(
   return latestSettlement?.handNumber ?? null;
 }
 
+function getTurnKey(
+  gameState: HoldemGameState | null,
+  handNumber: number,
+): string | null {
+  if (!gameState) return null;
+
+  const currentTurnUid = gameState.players[gameState.currentTurn]?.uid ?? "";
+  return `${handNumber}:${gameState.bettingRound}:${currentTurnUid}`;
+}
+
 export function useGameSoundEffects({
   roomId,
   handNumber,
@@ -144,8 +154,8 @@ export function useGameSoundEffects({
   const hasMounted = useRef(false);
   const previousActionKey = useRef<string | null>(null);
   const previousBettingRound = useRef(gameState?.bettingRound);
-  const previousTurnUid = useRef<string | undefined>(
-    gameState?.players[gameState.currentTurn]?.uid,
+  const previousTurnKey = useRef<string | null>(
+    getTurnKey(gameState, handNumber),
   );
   const previousSettlementHandNumber = useRef<number | null>(
     getLatestSettlementHandNumber(settlements),
@@ -158,13 +168,9 @@ export function useGameSoundEffects({
       primeGameSounds();
     };
 
-    window.addEventListener("pointerdown", handleUserGesture, {
-      once: true,
-    });
-    window.addEventListener("touchstart", handleUserGesture, {
-      once: true,
-    });
-    window.addEventListener("keydown", handleUserGesture, { once: true });
+    window.addEventListener("pointerdown", handleUserGesture);
+    window.addEventListener("touchstart", handleUserGesture);
+    window.addEventListener("keydown", handleUserGesture);
 
     return () => {
       window.removeEventListener("pointerdown", handleUserGesture);
@@ -188,7 +194,7 @@ export function useGameSoundEffects({
       hasMounted.current = true;
       previousActionKey.current = latestActionKey;
       previousBettingRound.current = currentBettingRound;
-      previousTurnUid.current = currentTurnUid;
+      previousTurnKey.current = getTurnKey(gameState, handNumber);
       previousSettlementHandNumber.current = latestSettlementHandNumber;
       return;
     }
@@ -215,7 +221,7 @@ export function useGameSoundEffects({
 
     if (
       currentTurnUid === currentUid &&
-      previousTurnUid.current !== currentUid &&
+      getTurnKey(gameState, handNumber) !== previousTurnKey.current &&
       gameState?.bettingRound !== "showdown"
     ) {
       playTurnAlertSound();
@@ -233,7 +239,7 @@ export function useGameSoundEffects({
 
     previousActionKey.current = latestActionKey;
     previousBettingRound.current = currentBettingRound;
-    previousTurnUid.current = currentTurnUid;
+    previousTurnKey.current = getTurnKey(gameState, handNumber);
     previousSettlementHandNumber.current = latestSettlementHandNumber;
   }, [currentUid, gameState, handNumber, roomId, settlements]);
 }
