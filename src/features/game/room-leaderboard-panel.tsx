@@ -49,7 +49,7 @@ export function RoomLeaderboardPanel({
   onToggleVisible: () => void;
   onSelectPlayer?: (player: RoomPlayerListItem) => void;
 }) {
-  const rows = getRoomLeaderboard({ settlements, players }).slice(0, 4);
+  const rows = getRoomLeaderboard({ settlements, players });
 
   if (!isVisible) {
     return (

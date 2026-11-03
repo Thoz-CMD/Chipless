@@ -24,6 +24,12 @@
     "room_pin": "PIN ห้อง",
     "room_pin_placeholder": "1234",
     "room_pin_description": "ผู้เล่นต้องใช้ PIN นี้เพื่อเข้าร่วมห้อง",
+    "room_mode": "โหมดการเล่น",
+    "room_mode_description": "เลือกว่าห้องนี้จะเล่นแบบเดิม หรือให้เว็บเป็นเจ้ามือแจกไพ่",
+    "room_mode_chipless": "โต๊ะแบบ Chipless",
+    "room_mode_chipless_description": "ใช้ระบบโต๊ะเดิม ผู้เล่นจัดการการเล่นและสรุปผลร่วมกัน",
+    "room_mode_dealer": "เว็บเป็นเจ้ามือ",
+    "room_mode_dealer_description": "เว็บสับไพ่ แจกไพ่ และควบคุมลำดับการเล่นให้ทุกคน",
     "big_blind": "เงินเดิมพันขั้นต่ำ (บาท)",
     "big_blind_description": "จำนวนเงินที่ต้องจ่ายเพื่อเปิดและดูไพ่",
     "button": "สร้างห้อง"
@@ -66,6 +72,7 @@
     "button": "เข้าร่วมห้อง"
   },
   "game": {
+    "web_dealer_mode": "เว็บเป็นเจ้ามือ",
     "copy_invite_link": "คัดลอกลิงก์เชิญ",
     "delete_room": "ลบห้อง",
     "deleting_room": "กำลังลบห้อง",

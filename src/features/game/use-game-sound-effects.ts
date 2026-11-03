@@ -219,6 +219,9 @@ export function useGameSoundEffects({
       gameState?.bettingRound !== "showdown"
     ) {
       playTurnAlertSound();
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        navigator.vibrate(180);
+      }
     }
 
     if (

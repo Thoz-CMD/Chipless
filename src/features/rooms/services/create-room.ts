@@ -72,6 +72,7 @@ export async function createRoom(
         hostUid: uid,
         status: "waiting",
         settings: {
+          roomMode: values.roomMode,
           bigBlind: values.bigBlind,
         },
         createdAt: timestamp,
@@ -92,8 +93,14 @@ export async function createRoom(
     };
 
     await update(ref(database, `rooms/${roomId}`), updates[`rooms/${roomId}`]);
-    await update(ref(database, `roomPlayers/${roomId}/${uid}`), updates[`roomPlayers/${roomId}/${uid}`]);
-    await update(ref(database, `roomSecrets/${roomId}`), updates[`roomSecrets/${roomId}`]);
+    await update(
+      ref(database, `roomPlayers/${roomId}/${uid}`),
+      updates[`roomPlayers/${roomId}/${uid}`],
+    );
+    await update(
+      ref(database, `roomSecrets/${roomId}`),
+      updates[`roomSecrets/${roomId}`],
+    );
 
     return { roomId };
   } catch (error) {

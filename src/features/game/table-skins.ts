@@ -55,7 +55,7 @@ export const BG_ORDER: BgThemeId[] = ["black", "forest", "ocean", "crimson", "vi
 
 // ─── Table Themes ─────────────────────────────────────────────────────────────
 
-export type TableThemeId = "classic" | "midnight" | "vegas" | "royal" | "neon" | "charcoal" | "wood" | "marble" | "fabric" | "mhonew-v1" | "mhonew-v2" | "pillow-gen";
+export type TableThemeId = "classic" | "midnight" | "vegas" | "royal" | "neon" | "charcoal" | "wood" | "marble" | "fabric" | "mhonew-v1";
 
 export type TableTheme = {
   id: TableThemeId;
@@ -191,36 +191,12 @@ export const TABLE_THEMES: Record<TableThemeId, TableTheme> = {
     useImage: true,
     imageUrl: "/images/table-themes/เอ็มออนิว-V1.jpg",
   },
-  "mhonew-v2": {
-    id: "mhonew-v2",
-    name: "เอ็มออนิว-V2",
-    previewColor: "#2d1f1f",
-    tableOuter: "url(/images/table-themes/เอ็มออนิว-V2.JPG)",
-    tableInner: "rgba(20,15,15,0)",
-    tableBorder: "rgba(150,100,80,0.6)",
-    tableGlow: "inset 0 0 20px rgba(100,70,60,0.1), 0 0 15px rgba(80,60,50,0.15)",
-    potBg: "rgba(0,0,0,0.6)",
-    useImage: true,
-    imageUrl: "/images/table-themes/เอ็มออนิว-V2.JPG",
-  },
-  "pillow-gen": {
-    id: "pillow-gen",
-    name: "รุ่นเสยเกยหมอน",
-    previewColor: "#2d1f1f",
-    tableOuter: "url(/images/table-themes/รุ่นเสยเกยหมอน.png)",
-    tableInner: "rgba(20,15,15,0)",
-    tableBorder: "rgba(150,100,80,0.6)",
-    tableGlow: "inset 0 0 20px rgba(100,70,60,0.1), 0 0 15px rgba(80,60,50,0.15)",
-    potBg: "rgba(0,0,0,0.6)",
-    useImage: true,
-    imageUrl: "/images/table-themes/รุ่นเสยเกยหมอน.png",
-  },
 };
 
 export const DEFAULT_TABLE_ID: TableThemeId = "charcoal";
 export const TABLE_STORAGE_KEY = "chipless_table_theme";
 export const TABLE_ORDER: TableThemeId[] = [
-  "charcoal", "classic", "midnight", "vegas", "royal", "neon", "wood", "marble", "fabric", "mhonew-v1", "mhonew-v2", "pillow-gen",
+  "charcoal", "classic", "midnight", "vegas", "royal", "neon", "wood", "marble", "fabric", "mhonew-v1",
 ];
 
 

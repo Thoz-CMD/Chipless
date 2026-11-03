@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import type { CSSProperties } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -12,8 +12,11 @@ import type {
 } from "@/features/game/logic/texas-holdem";
 import type { ExtinguishedWinStreak } from "@/features/game/logic/win-streaks";
 import { PlayerSeat } from "@/features/game/player-seat";
+import { evaluateBestHand } from "@/features/game/logic/hand-evaluator";
+import type { HandCategory } from "@/features/game/logic/hand-evaluator";
 import type { RoomPlayerListItem } from "@/features/rooms/services/subscribe-room-players";
 import type { TipNotification } from "@/features/game/tip-notification";
+import type { HandSettlement } from "@/features/rooms/services/settle-hand";
 import {
   updatePlayerSeatOrder,
   UpdatePlayerSeatsError,
@@ -29,6 +32,28 @@ type SeatCoordinates = {
   x: number;
   y: number;
 };
+
+function getRevealedHandCategory(
+  bettingRound: BettingRound | undefined,
+  privateCards: readonly string[] | undefined,
+  communityCards: readonly string[] | undefined,
+): HandCategory | undefined {
+  if (
+    bettingRound !== "summary" ||
+    !privateCards ||
+    !communityCards ||
+    privateCards.length < 2 ||
+    communityCards.length < 5
+  ) {
+    return undefined;
+  }
+
+  try {
+    return evaluateBestHand([...privateCards.slice(0, 2), ...communityCards.slice(0, 5)]).category;
+  } catch {
+    return undefined;
+  }
+}
 
 function getSeatCoordinates(index: number, total: number): SeatCoordinates {
   if (total <= 0) {
@@ -77,10 +102,7 @@ function orderPlayersForSeats(
     return sorted;
   }
 
-  return [
-    ...sorted.slice(currentIndex),
-    ...sorted.slice(0, currentIndex),
-  ];
+  return [...sorted.slice(currentIndex), ...sorted.slice(0, currentIndex)];
 }
 
 function formatAmount(amount: number): string {
@@ -120,6 +142,7 @@ export function GameTable({
   potAmount,
   currentPlayerContribution,
   bettingRound,
+  communityCards,
   actionLog,
   foldedUids,
   smallBlindAmount,
@@ -139,6 +162,8 @@ export function GameTable({
   tipNotifications = [],
   onTipNotificationComplete,
   settlements,
+  showdownCards,
+  highlightedCards,
 }: {
   players: RoomPlayerListItem[];
   currentUid?: string;
@@ -149,6 +174,7 @@ export function GameTable({
   potAmount: number;
   currentPlayerContribution?: number;
   bettingRound?: BettingRound;
+  communityCards?: readonly string[];
   actionLog?: HoldemActionLogEntry[];
   foldedUids?: Set<string>;
   smallBlindAmount?: number;
@@ -167,9 +193,12 @@ export function GameTable({
   cardTheme?: CardTheme;
   tipNotifications?: TipNotification[];
   onTipNotificationComplete?: (id: string) => void;
-  settlements?: Record<string, any>; // Hand settlement data for calculating ranks
+  settlements?: Record<string, HandSettlement>;
+  showdownCards?: Record<string, readonly string[]>;
+  highlightedCards?: readonly string[];
 }) {
-  const activeTableTheme: TableTheme = tableTheme ?? TABLE_THEMES[DEFAULT_TABLE_ID];
+  const activeTableTheme: TableTheme =
+    tableTheme ?? TABLE_THEMES[DEFAULT_TABLE_ID];
   const [selectedSeatUid, setSelectedSeatUid] = useState<string | null>(null);
 
   const t = useTranslations("game");
@@ -188,23 +217,23 @@ export function GameTable({
   const playerRanksByUid = new Map<string, number>();
   if (settlements) {
     const totalsByUid = new Map<string, number>();
-    
+
     // Initialize all players with 0
     players.forEach((p) => totalsByUid.set(p.uid, 0));
-    
+
     // Sum up all settlements
-    Object.values(settlements).forEach((settlement: any) => {
-      Object.values(settlement.playerResults || {}).forEach((result: any) => {
+    Object.values(settlements).forEach((settlement) => {
+      Object.values(settlement.playerResults).forEach((result) => {
         const currentTotal = totalsByUid.get(result.uid) ?? 0;
         totalsByUid.set(result.uid, currentTotal + (result.net || 0));
       });
     });
-    
+
     // Sort by total and assign ranks
     const rankedUids = Array.from(totalsByUid.entries())
       .sort((a, b) => b[1] - a[1]) // Sort descending by total
       .map(([uid]) => uid);
-    
+
     rankedUids.forEach((uid, index) => {
       playerRanksByUid.set(uid, index + 1); // Rank starts from 1
     });
@@ -217,16 +246,19 @@ export function GameTable({
       : playerUids.has(hostUid ?? "")
         ? hostUid
         : players[0]?.uid;
-  
-  const dealerUid = currentSmallBlindUid 
+
+  const dealerUid = currentSmallBlindUid
     ? (() => {
-        const sbIndex = seatedPlayers.findIndex(p => p.uid === currentSmallBlindUid);
+        const sbIndex = seatedPlayers.findIndex(
+          (p) => p.uid === currentSmallBlindUid,
+        );
         if (sbIndex === -1) return undefined;
-        const dealerIndex = sbIndex === 0 ? seatedPlayers.length - 1 : sbIndex - 1;
+        const dealerIndex =
+          sbIndex === 0 ? seatedPlayers.length - 1 : sbIndex - 1;
         return seatedPlayers[dealerIndex]?.uid;
       })()
     : undefined;
-  
+
   const hasActionInCurrentRound =
     bettingRound !== undefined &&
     actionLog?.some((entry) => entry.bettingRound === bettingRound);
@@ -236,22 +268,22 @@ export function GameTable({
 
   const lastActionByUid = new Map<string, string>();
   const lastActionAmountByUid = new Map<string, string>();
-  
+
   if (actionLog && bettingRound) {
     const currentRoundActions = actionLog.filter(
-      (entry) => entry.bettingRound === bettingRound
+      (entry) => entry.bettingRound === bettingRound,
     );
-    
+
     currentRoundActions.forEach((entry) => {
       const actionKey = entry.action.toLowerCase().replace(/\s+/g, "_");
       const translatedAction = tActions(actionKey);
-      
+
       lastActionByUid.set(entry.uid, translatedAction);
-      
+
       if (entry.amount !== undefined) {
         lastActionAmountByUid.set(
           entry.uid,
-          `${formatAmount(entry.amount)} ${tCommon("currency")}`
+          `${formatAmount(entry.amount)} ${tCommon("currency")}`,
         );
       }
     });
@@ -262,19 +294,19 @@ export function GameTable({
       lastActionByUid.set(currentSmallBlindUid, tActions("small_blind"));
       lastActionAmountByUid.set(
         currentSmallBlindUid,
-        `${formatAmount(smallBlindAmount)} ${tCommon("currency")}`
+        `${formatAmount(smallBlindAmount)} ${tCommon("currency")}`,
       );
     }
-    
+
     if (bigBlindUid && !lastActionByUid.has(bigBlindUid)) {
       lastActionByUid.set(bigBlindUid, tActions("big_blind"));
       lastActionAmountByUid.set(
         bigBlindUid,
-        `${formatAmount(bigBlindAmount)} ${tCommon("currency")}`
+        `${formatAmount(bigBlindAmount)} ${tCommon("currency")}`,
       );
     }
   }
-  
+
   if (foldedUids) {
     foldedUids.forEach((uid) => {
       if (!lastActionByUid.has(uid)) {
@@ -326,14 +358,14 @@ export function GameTable({
     <section className="relative mx-auto h-full w-full">
       {/* Active rearrange done button on table */}
       {isArrangingSeats && onExitRearrangeSeats && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-2">
+        <div className="animate-in fade-in slide-in-from-top-2 absolute top-2 left-1/2 z-50 -translate-x-1/2">
           <button
             type="button"
             onClick={() => {
               setSelectedSeatUid(null);
               onExitRearrangeSeats();
             }}
-            className="rounded-full border border-sky-400/80 bg-black/90 px-4 py-1.5 text-xs font-bold text-white shadow-[0_0_20px_rgba(56,189,248,0.35)] backdrop-blur-md hover:bg-white/15 active:scale-95 transition-all"
+            className="rounded-full border border-sky-400/80 bg-black/90 px-4 py-1.5 text-xs font-bold text-white shadow-[0_0_20px_rgba(56,189,248,0.35)] backdrop-blur-md transition-all hover:bg-white/15 active:scale-95"
           >
             {tSettings("done")}
           </button>
@@ -341,21 +373,20 @@ export function GameTable({
       )}
 
       {/* Table outer with blur effect on edges */}
-      <div className="absolute top-[47%] left-1/2 h-[70%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-full overflow-hidden">
+      <div className="absolute top-[47%] left-1/2 h-[70%] w-[58%] -translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-full">
         {/* Main background image/gradient */}
         <div
           className="absolute inset-0 rounded-full border-4 transition-all duration-500"
           style={{
-            ...(activeTableTheme.useImage 
+            ...(activeTableTheme.useImage
               ? {
                   backgroundImage: `url(${activeTableTheme.imageUrl})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
                 }
               : {
                   background: activeTableTheme.tableOuter,
-                }
-            ),
+                }),
             borderColor: activeTableTheme.tableBorder,
             boxShadow: activeTableTheme.tableGlow,
           }}
@@ -366,11 +397,13 @@ export function GameTable({
             className="absolute inset-0 rounded-full"
             style={{
               backgroundImage: `url(${activeTableTheme.imageUrl})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              filter: 'blur(5px)',
-              maskImage: 'radial-gradient(ellipse at center, transparent 0%, transparent 35%, black 70%, black 100%)',
-              WebkitMaskImage: 'radial-gradient(ellipse at center, transparent 0%, transparent 35%, black 70%, black 100%)',
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              filter: "blur(5px)",
+              maskImage:
+                "radial-gradient(ellipse at center, transparent 0%, transparent 35%, black 70%, black 100%)",
+              WebkitMaskImage:
+                "radial-gradient(ellipse at center, transparent 0%, transparent 35%, black 70%, black 100%)",
             }}
           />
         )}
@@ -379,7 +412,8 @@ export function GameTable({
           <div
             className="absolute inset-0 rounded-full"
             style={{
-              background: 'radial-gradient(ellipse at center, transparent 0%, transparent 30%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.6) 90%, rgba(0,0,0,0.8) 100%)',
+              background:
+                "radial-gradient(ellipse at center, transparent 0%, transparent 30%, rgba(0,0,0,0.3) 60%, rgba(0,0,0,0.6) 90%, rgba(0,0,0,0.8) 100%)",
             }}
           />
         )}
@@ -392,45 +426,54 @@ export function GameTable({
         }}
       />
 
-      <div className="absolute top-[47%] left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2">
+      <div className="absolute top-[47%] left-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
         {latestWinnerName ? (
-          <div className="animate-in fade-in zoom-in duration-500 px-5 py-2">
+          <div className="animate-in fade-in zoom-in px-5 py-2 duration-500">
             <span className="text-sm font-bold text-amber-200 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
               ผู้ชนะ: {latestWinnerName}
             </span>
           </div>
         ) : null}
-        
+
         {revealStatus ? (
-          <div className="animate-in fade-in zoom-in duration-500 px-5 py-2">
+          <div className="animate-in fade-in zoom-in px-5 py-2 duration-500">
             <span className="text-sm font-bold text-amber-200 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
               {revealStatus}
             </span>
           </div>
         ) : null}
-        
+
         <div
           className="flex items-center gap-3 rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white backdrop-blur-sm transition-all duration-500"
           style={{ background: activeTableTheme.potBg }}
         >
           <div className="flex items-center gap-1.5">
             <span className="text-white/70">พอท</span>
-            <span className="text-white font-bold text-base">{potAmount.toLocaleString()}</span>
+            <span className="text-base font-bold text-white">
+              {potAmount.toLocaleString()}
+            </span>
           </div>
           {currentPlayerContribution !== undefined ? (
             <>
               <span className="text-white/30">•</span>
               <div className="flex items-center gap-1.5">
                 <span className="text-white/70">คุณ</span>
-                <span className="text-white font-bold text-base">{currentPlayerContribution.toLocaleString()}</span>
+                <span className="text-base font-bold text-white">
+                  {currentPlayerContribution.toLocaleString()}
+                </span>
               </div>
             </>
           ) : null}
         </div>
-        
-        <CommunityCards bettingRound={bettingRound} cardTheme={cardTheme} />
-        
-        <div className="font-audiowide text-white text-xs font-bold tracking-wider opacity-80">
+
+        <CommunityCards
+          bettingRound={bettingRound}
+          communityCards={communityCards}
+          cardTheme={cardTheme}
+          highlightedCards={highlightedCards}
+        />
+
+        <div className="font-audiowide text-xs font-bold tracking-wider text-white opacity-80">
           CHIPLESS
         </div>
       </div>
@@ -438,12 +481,12 @@ export function GameTable({
       {seatedPlayers.map((player, index) => {
         // Find tip notification for this player (receiver)
         const playerTipNotification = tipNotifications.find(
-          (notif) => notif.toUid === player.uid
+          (notif) => notif.toUid === player.uid,
         );
 
         // Find tip notification sent by this player (sender)
         const senderTipNotification = tipNotifications.find(
-          (notif) => notif.fromUid === player.uid
+          (notif) => notif.fromUid === player.uid,
         );
 
         // Get recipient name for sender notification
@@ -467,7 +510,8 @@ export function GameTable({
             isWaitingForNextHand={
               activeHandPlayerUids !== undefined &&
               !activeHandPlayerUids.has(player.uid) &&
-              actionLog !== undefined && actionLog.length > 0
+              actionLog !== undefined &&
+              actionLog.length > 0
             }
             winStreak={winStreaksByUid?.[player.uid]}
             isExtinguishing={extinguishAnimation?.extinguishedUids.includes(
@@ -477,12 +521,25 @@ export function GameTable({
             lastAction={lastActionByUid.get(player.uid)}
             lastActionAmount={lastActionAmountByUid.get(player.uid)}
             rank={playerRanksByUid.get(player.uid)}
+            privateCards={
+              player.uid === currentUid
+                ? undefined
+                : showdownCards?.[player.uid]
+            }
+            handCategory={getRevealedHandCategory(
+              bettingRound,
+              player.uid === currentUid ? undefined : showdownCards?.[player.uid],
+              communityCards,
+            )}
+            hideAvatarBadges={bettingRound === "summary"}
             style={getSeatPosition(
               seatCoordinatesByUid.get(player.uid) ??
                 getSeatCoordinates(index, seatedPlayers.length),
             )}
-            seatCoordinates={seatCoordinatesByUid.get(player.uid) ??
-                getSeatCoordinates(index, seatedPlayers.length)}
+            seatCoordinates={
+              seatCoordinatesByUid.get(player.uid) ??
+              getSeatCoordinates(index, seatedPlayers.length)
+            }
             isSelected={isArrangingSeats && selectedSeatUid === player.uid}
             isArrangingSeats={isArrangingSeats}
             tipNotification={playerTipNotification ?? null}
@@ -503,10 +560,10 @@ export function GameTable({
                 return;
               }
 
-            onSelectPlayer?.(player);
-          }}
-        />
-      );
+              onSelectPlayer?.(player);
+            }}
+          />
+        );
       })}
     </section>
   );

@@ -1,6 +1,9 @@
 import { z } from "zod";
 
+export const roomModeSchema = z.enum(["chipless", "dealer"]);
+
 export const createRoomSchema = z.object({
+  roomMode: roomModeSchema.default("chipless"),
   roomName: z
     .string()
     .trim()
@@ -16,4 +19,5 @@ export const createRoomSchema = z.object({
     .positive("Big Blind must be greater than 0."),
 });
 
-export type CreateRoomFormValues = z.infer<typeof createRoomSchema>;
+export type CreateRoomFormInput = z.input<typeof createRoomSchema>;
+export type CreateRoomFormValues = z.output<typeof createRoomSchema>;

@@ -42,6 +42,7 @@ type RoomSummaryData = {
   };
   settings: {
     bigBlind: number;
+    roomMode?: "chipless" | "dealer";
     allInMode?: boolean;
     maxAllInAmount?: number;
   };
@@ -80,7 +81,10 @@ function isRoomSummaryData(value: unknown): value is RoomSummaryData {
           typeof gameState.handNumber === "number") &&
         (gameState.hand === undefined || isHoldemGameState(gameState.hand)))) &&
     Boolean(settings) &&
-    typeof settings?.bigBlind === "number"
+    typeof settings?.bigBlind === "number" &&
+    (settings.roomMode === undefined ||
+      settings.roomMode === "chipless" ||
+      settings.roomMode === "dealer")
   );
 }
 
@@ -101,7 +105,7 @@ export function RoomSummary({ roomId }: { roomId: string }) {
     // Use onAuthStateChanged to properly handle authentication state
     const unsubscribeAuth = auth.onAuthStateChanged(async (user) => {
       if (!isMounted) return;
-      
+
       try {
         if (!user) {
           // Sign in anonymously if not signed in
@@ -112,12 +116,12 @@ export function RoomSummary({ roomId }: { roomId: string }) {
 
         const uid = user.uid;
         const database = getRealtimeDatabase();
-        
+
         const [snapshot, playerSnapshot] = await Promise.all([
           get(ref(database, `rooms/${roomId}`)),
           get(ref(database, `roomPlayers/${roomId}/${uid}`)),
         ]);
-        
+
         const value: unknown = snapshot.val();
         const playerValue: unknown = playerSnapshot.val();
 
@@ -141,9 +145,7 @@ export function RoomSummary({ roomId }: { roomId: string }) {
       } catch (error) {
         console.error("Error in room loading:", error);
         const message =
-          error instanceof Error
-            ? error.message
-            : t("unable_to_load");
+          error instanceof Error ? error.message : t("unable_to_load");
 
         if (isMounted) {
           setLoadState({ status: "error", message });
@@ -223,9 +225,7 @@ export function RoomSummary({ roomId }: { roomId: string }) {
       })
       .catch((error) => {
         const message =
-          error instanceof Error
-            ? error.message
-            : t("unable_to_presence");
+          error instanceof Error ? error.message : t("unable_to_presence");
         toast.error(message);
       });
 
@@ -249,9 +249,17 @@ export function RoomSummary({ roomId }: { roomId: string }) {
     );
 
     if (!currentPlayerIsPresent) {
-      console.warn('Current player not found in players list, redirecting to home');
-      console.log('Current UID:', loadState.currentUid);
-      console.log('Players in room:', playersState.players.map(p => ({ uid: p.uid, displayName: p.displayName })));
+      console.warn(
+        "Current player not found in players list, redirecting to home",
+      );
+      console.log("Current UID:", loadState.currentUid);
+      console.log(
+        "Players in room:",
+        playersState.players.map((p) => ({
+          uid: p.uid,
+          displayName: p.displayName,
+        })),
+      );
       router.replace("/");
       return;
     }

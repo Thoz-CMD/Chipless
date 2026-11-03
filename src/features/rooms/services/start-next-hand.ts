@@ -54,9 +54,12 @@ export async function startNextHand(roomId: string): Promise<void> {
     const uid = getFirebaseAuth().currentUser?.uid;
 
     if (!uid) {
-      throw new StartNextHandError("Please sign in before starting the next hand.", {
-        code: "unauthenticated",
-      });
+      throw new StartNextHandError(
+        "Please sign in before starting the next hand.",
+        {
+          code: "unauthenticated",
+        },
+      );
     }
 
     const database = getRealtimeDatabase();
@@ -76,7 +79,8 @@ export async function startNextHand(roomId: string): Promise<void> {
     const room = roomValue as Record<string, unknown>;
     const settings = room.settings as Record<string, unknown> | undefined;
     const gameState = room.gameState as Record<string, unknown> | undefined;
-    const bigBlind = typeof settings?.bigBlind === "number" ? settings.bigBlind : undefined;
+    const bigBlind =
+      typeof settings?.bigBlind === "number" ? settings.bigBlind : undefined;
 
     if (room.hostUid !== uid || typeof bigBlind !== "number") {
       throw new StartNextHandError("Only the host can start the next hand.", {
@@ -99,8 +103,11 @@ export async function startNextHand(roomId: string): Promise<void> {
         ? gameState.currentBigBlindUid
         : null) ?? (room.hostUid as string);
 
-    const currentIndex = players.findIndex((player) => player.uid === currentBigBlindUid);
-    const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % players.length;
+    const currentIndex = players.findIndex(
+      (player) => player.uid === currentBigBlindUid,
+    );
+    const nextIndex =
+      currentIndex < 0 ? 0 : (currentIndex + 1) % players.length;
     const nextBigBlindUid = players[nextIndex]?.uid ?? players[0]?.uid;
 
     if (!nextBigBlindUid) {
@@ -118,7 +125,38 @@ export async function startNextHand(roomId: string): Promise<void> {
         ? (nextIndex + 1) % players.length
         : (nextIndex - 2 + players.length) % players.length;
 
-    const allInMode = settings?.allInMode === true;
+    const dealerMode = settings?.roomMode === "dealer";
+    const allInMode = !dealerMode && settings?.allInMode === true;
+
+    if (dealerMode) {
+      const idToken = await getFirebaseAuth().currentUser?.getIdToken();
+      if (!idToken) {
+        throw new StartNextHandError(
+          "Please sign in before starting the next hand.",
+          {
+            code: "unauthenticated",
+          },
+        );
+      }
+
+      const response = await fetch("/api/dealer/start-next-hand", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId, idToken }),
+      });
+      const responseValue: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message =
+          responseValue &&
+          typeof responseValue === "object" &&
+          typeof (responseValue as Record<string, unknown>).error === "string"
+            ? (responseValue as Record<string, string>).error
+            : "Unable to start next dealer hand.";
+        throw new StartNextHandError(message, { code: "dealer-start-failed" });
+      }
+      return;
+    }
+
     const maxAllInAmount =
       typeof settings?.maxAllInAmount === "number"
         ? settings.maxAllInAmount
@@ -132,7 +170,11 @@ export async function startNextHand(roomId: string): Promise<void> {
       })),
       dealerPosition,
       bigBlind,
-      ...(allInMode ? { gameMode: "allin" as const, maxAllInAmount } : {}),
+      ...(dealerMode
+        ? { gameMode: "dealer" as const }
+        : allInMode
+          ? { gameMode: "allin" as const, maxAllInAmount }
+          : {}),
     });
 
     const updates: Record<string, unknown> = {
@@ -150,15 +192,15 @@ export async function startNextHand(roomId: string): Promise<void> {
     // Update room and players separately to avoid root path permission issues
     const roomUpdates: Record<string, unknown> = {};
     const playerUpdates: Record<string, unknown> = {};
-    
+
     for (const [key, value] of Object.entries(updates)) {
       if (key.startsWith(`rooms/${roomId}`)) {
-        roomUpdates[key.replace(`rooms/${roomId}/`, '')] = value;
+        roomUpdates[key.replace(`rooms/${roomId}/`, "")] = value;
       } else if (key.startsWith(`roomPlayers/${roomId}`)) {
-        playerUpdates[key.replace(`roomPlayers/${roomId}/`, '')] = value;
+        playerUpdates[key.replace(`roomPlayers/${roomId}/`, "")] = value;
       }
     }
-    
+
     await update(ref(database, `rooms/${roomId}`), roomUpdates);
     if (Object.keys(playerUpdates).length > 0) {
       await update(ref(database, `roomPlayers/${roomId}`), playerUpdates);
@@ -181,8 +223,11 @@ export async function startNextHand(roomId: string): Promise<void> {
       throw new StartNextHandError(error.message, { cause: error });
     }
 
-    throw new StartNextHandError("Unable to start next hand. Please try again.", {
-      cause: error,
-    });
+    throw new StartNextHandError(
+      "Unable to start next hand. Please try again.",
+      {
+        cause: error,
+      },
+    );
   }
 }

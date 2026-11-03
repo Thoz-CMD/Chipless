@@ -574,6 +574,28 @@ body {
   }
 }
 
+@keyframes hand-category-float {
+  0%,
+  100% {
+    margin-top: 0;
+  }
+  50% {
+    margin-top: -5px;
+  }
+}
+
+.hand-category-label {
+  animation: hand-category-float 2.8s ease-in-out infinite;
+  will-change: margin-top;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hand-category-label {
+    animation: none;
+    will-change: auto;
+  }
+}
+
 @keyframes progress-bar {
   from {
     transform: scaleX(1);

@@ -4,6 +4,9 @@ import { Minus, Plus } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { PlayingCardFace } from "@/features/game/playing-card-face";
+import { HandCategoryLabel } from "@/features/game/hand-category-label";
+import type { HandCategory } from "@/features/game/logic/hand-evaluator";
 
 import {
   getAvailableActions,
@@ -112,10 +115,22 @@ export function ActionPanel({
   roomId,
   initialGameState,
   currentUid,
+  privateCards,
+  highlightedCards = [],
+  cardsSideBySide = false,
+  handCategory,
+  handLabel,
+  handHint,
 }: {
   roomId: string;
   initialGameState: HoldemGameState;
   currentUid: string;
+  privateCards?: readonly string[];
+  highlightedCards?: readonly string[];
+  cardsSideBySide?: boolean;
+  handCategory?: HandCategory;
+  handLabel?: string;
+  handHint?: string;
 }) {
   const t = useTranslations("game");
   const tCommon = useTranslations("common");
@@ -139,18 +154,20 @@ export function ActionPanel({
   );
   const minimumActionAmount = aggressiveAction?.minimumAmount ?? minBetAmount;
   const maxAffordableActionAmount = aggressiveAction
-    ? getMaxAffordableActionAmount({
-      action: aggressiveAction,
-      playerStack: currentPlayer?.stack ?? 0,
-      amountToCall,
-      currentBet: gameState.currentBet,
-    })
+    ? gameState.gameMode === "dealer"
+      ? maxBetAmount
+      : getMaxAffordableActionAmount({
+          action: aggressiveAction,
+          playerStack: currentPlayer?.stack ?? 0,
+          amountToCall,
+          currentBet: gameState.currentBet,
+        })
     : maxBetAmount;
   const maximumActionAmount = aggressiveAction
     ? Math.max(
-      minimumActionAmount,
-      Math.min(maxBetAmount, maxAffordableActionAmount),
-    )
+        minimumActionAmount,
+        Math.min(maxBetAmount, maxAffordableActionAmount),
+      )
     : maxBetAmount;
   const [betAmount, setBetAmount] = useState(() => minBetAmount);
   const currentBet = clampBet(
@@ -163,8 +180,8 @@ export function ActionPanel({
     maximumActionAmount === minimumActionAmount
       ? 100
       : ((currentBet - minimumActionAmount) /
-        (maximumActionAmount - minimumActionAmount)) *
-      100;
+          (maximumActionAmount - minimumActionAmount)) *
+        100;
 
   const [prevRound, setPrevRound] = useState(gameState.bettingRound);
   if (gameState.bettingRound !== prevRound) {
@@ -321,7 +338,25 @@ export function ActionPanel({
   ]);
 
   return (
-    <section className="rounded-xl border border-white/30 bg-black/70 p-3 shadow-[0_0_24px_rgba(255,255,255,0.08)]">
+    <div className="relative">
+      {handCategory ? (
+        <HandCategoryLabel
+          category={handCategory}
+          label={handLabel}
+          hint={handHint}
+          className="-top-[5.25rem] left-1/2 -translate-x-1/2"
+        />
+      ) : null}
+      {privateCards && privateCards.length > 0 ? (
+        <div className={`pointer-events-none absolute -top-12 left-1/2 z-0 h-[4.5rem] -translate-x-1/2 ${cardsSideBySide ? "w-[6.25rem]" : "w-[5.5rem]"}`} aria-label="Your cards">
+          {privateCards.slice(0, 2).map((card, index) => (
+            <div key={card} className={`absolute top-0 ${cardsSideBySide ? (index === 0 ? "left-0" : "right-0") : index === 0 ? "left-0 -rotate-6" : "right-0 rotate-6"}`}>
+              <PlayingCardFace card={card} hand highlighted={highlightedCards.includes(card)} />
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <section className="relative z-10 rounded-xl border border-white/30 bg-black p-3 shadow-[0_0_24px_rgba(255,255,255,0.08)]">
       {gameState.gameMode === "allin" ? (
         <div className="flex items-center justify-between rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs text-amber-300">
           <span className="font-semibold">โหมดออลอิน</span>
@@ -339,7 +374,9 @@ export function ActionPanel({
               <span className="inline-block w-[3.3rem] text-2xl font-semibold tabular-nums">
                 {formatAmount(currentBet)}
               </span>
-              <span className="text-sm font-semibold text-white/45">{tCommon("currency")}</span>
+              <span className="text-sm font-semibold text-white/45">
+                {tCommon("currency")}
+              </span>
             </div>
           </div>
           <button
@@ -396,55 +433,127 @@ export function ActionPanel({
 
       <div className="mt-3 flex flex-wrap justify-center gap-1.5">
         {/* Pre-action buttons for players when it's not their turn */}
-        {!isCurrentPlayerTurn && !currentPlayer?.hasFolded && !currentPlayer?.isAllIn && (
-          <>
-            {gameState.gameMode === "allin" ? (
-              gameState.bettingRound === "flop" ? (
-                // All-In mode: Flop round (Fold or All-In)
-                <>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingAction((prev) => (prev === "fold" ? null : "fold"));
-                    }}
-                    disabled={isSubmittingAction}
-                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "fold"
-                        ? "border-yellow-500/60 bg-yellow-500/20"
-                        : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
+        {!isCurrentPlayerTurn &&
+          !currentPlayer?.hasFolded &&
+          !currentPlayer?.isAllIn && (
+            <>
+              {gameState.gameMode === "allin" ? (
+                gameState.bettingRound === "flop" ? (
+                  // All-In mode: Flop round (Fold or All-In)
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingAction((prev) =>
+                          prev === "fold" ? null : "fold",
+                        );
+                      }}
+                      disabled={isSubmittingAction}
+                      className={`h-9 min-w-24 flex-1 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
+                        pendingAction === "fold"
+                          ? "border-yellow-500/60 bg-yellow-500/20"
+                          : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
                       }`}
-                  >
-                    {tActions("fold")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingAction((prev) => (prev === "allin" ? null : "allin"));
-                    }}
-                    disabled={isSubmittingAction}
-                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-bold shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-all disabled:opacity-35 ${pendingAction === "allin"
-                        ? "border-amber-400 bg-amber-500/40 text-amber-200 shadow-[0_0_14px_rgba(245,158,11,0.35)]"
-                        : "border-amber-500/40 bg-amber-500/20 text-amber-300 hover:border-amber-400 hover:bg-amber-500/30"
+                    >
+                      {tActions("fold")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingAction((prev) =>
+                          prev === "allin" ? null : "allin",
+                        );
+                      }}
+                      disabled={isSubmittingAction}
+                      className={`h-9 min-w-24 flex-1 rounded-lg border px-1 text-xs font-bold shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-all disabled:opacity-35 ${
+                        pendingAction === "allin"
+                          ? "border-amber-400 bg-amber-500/40 text-amber-200 shadow-[0_0_14px_rgba(245,158,11,0.35)]"
+                          : "border-amber-500/40 bg-amber-500/20 text-amber-300 hover:border-amber-400 hover:bg-amber-500/30"
                       }`}
-                  >
-                    {`${tActions("all_in")} ${formatAmount(gameState.maxAllInAmount ?? 0)}`}
-                  </button>
-                </>
+                    >
+                      {`${tActions("all_in")} ${formatAmount(gameState.maxAllInAmount ?? 0)}`}
+                    </button>
+                  </>
+                ) : (
+                  // All-In mode: Preflop round (Fold or Call/Check)
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPendingAction((prev) =>
+                          prev === "fold" ? null : "fold",
+                        );
+                      }}
+                      disabled={isSubmittingAction}
+                      className={`h-9 min-w-24 flex-1 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
+                        pendingAction === "fold"
+                          ? "border-yellow-500/60 bg-yellow-500/20"
+                          : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
+                      }`}
+                    >
+                      {tActions("fold")}
+                    </button>
+                    {amountToCall > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (pendingAction === "call") {
+                            setPendingAction(null);
+                            setPendingCallAmount(0);
+                          } else {
+                            setPendingAction("call");
+                            setPendingCallAmount(amountToCall);
+                          }
+                        }}
+                        disabled={isSubmittingAction}
+                        className={`h-9 min-w-24 flex-1 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
+                          pendingAction === "call"
+                            ? "border-yellow-500/60 bg-yellow-500/20"
+                            : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
+                        }`}
+                      >
+                        {`${tActions("call")} ${formatAmount(amountToCall)}`}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setPendingAction((prev) =>
+                            prev === "check" ? null : "check",
+                          );
+                        }}
+                        disabled={isSubmittingAction}
+                        className={`h-9 min-w-24 flex-1 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
+                          pendingAction === "check"
+                            ? "border-yellow-500/60 bg-yellow-500/20"
+                            : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
+                        }`}
+                      >
+                        {tActions("check")}
+                      </button>
+                    )}
+                  </>
+                )
               ) : (
-                // All-In mode: Preflop round (Fold or Call/Check)
+                // Standard Mode: 3 buttons (Check/Fold, Call [amount] / Check, Call Any)
                 <>
                   <button
                     type="button"
                     onClick={() => {
-                      setPendingAction((prev) => (prev === "fold" ? null : "fold"));
+                      setPendingAction((prev) =>
+                        prev === "check-fold" ? null : "check-fold",
+                      );
                     }}
                     disabled={isSubmittingAction}
-                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "fold"
+                    className={`h-9 min-w-24 flex-1 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
+                      pendingAction === "check-fold"
                         ? "border-yellow-500/60 bg-yellow-500/20"
                         : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                      }`}
+                    }`}
                   >
-                    {tActions("fold")}
+                    {tActions("check_fold")}
                   </button>
+
                   {amountToCall > 0 ? (
                     <button
                       type="button"
@@ -458,10 +567,11 @@ export function ActionPanel({
                         }
                       }}
                       disabled={isSubmittingAction}
-                      className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "call"
+                      className={`h-9 min-w-24 flex-1 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
+                        pendingAction === "call"
                           ? "border-yellow-500/60 bg-yellow-500/20"
                           : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                        }`}
+                      }`}
                     >
                       {`${tActions("call")} ${formatAmount(amountToCall)}`}
                     </button>
@@ -469,154 +579,117 @@ export function ActionPanel({
                     <button
                       type="button"
                       onClick={() => {
-                        setPendingAction((prev) => (prev === "check" ? null : "check"));
+                        setPendingAction((prev) =>
+                          prev === "check" ? null : "check",
+                        );
                       }}
                       disabled={isSubmittingAction}
-                      className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "check"
+                      className={`h-9 min-w-24 flex-1 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
+                        pendingAction === "check"
                           ? "border-yellow-500/60 bg-yellow-500/20"
                           : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                        }`}
+                      }`}
                     >
                       {tActions("check")}
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPendingAction((prev) =>
+                        prev === "call-any" ? null : "call-any",
+                      );
+                    }}
+                    disabled={isSubmittingAction}
+                    className={`h-9 min-w-24 flex-1 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${
+                      pendingAction === "call-any"
+                        ? "border-yellow-500/60 bg-yellow-500/20"
+                        : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
+                    }`}
+                  >
+                    {tActions("call_any")}
+                  </button>
                 </>
-              )
-            ) : (
-              // Standard Mode: 3 buttons (Check/Fold, Call [amount] / Check, Call Any)
-              <>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPendingAction((prev) => (prev === "check-fold" ? null : "check-fold"));
-                  }}
-                  disabled={isSubmittingAction}
-                  className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "check-fold"
-                      ? "border-yellow-500/60 bg-yellow-500/20"
-                      : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                    }`}
-                >
-                  {tActions("check_fold")}
-                </button>
-
-                {amountToCall > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (pendingAction === "call") {
-                        setPendingAction(null);
-                        setPendingCallAmount(0);
-                      } else {
-                        setPendingAction("call");
-                        setPendingCallAmount(amountToCall);
-                      }
-                    }}
-                    disabled={isSubmittingAction}
-                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "call"
-                        ? "border-yellow-500/60 bg-yellow-500/20"
-                        : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                      }`}
-                  >
-                    {`${tActions("call")} ${formatAmount(amountToCall)}`}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPendingAction((prev) => (prev === "check" ? null : "check"));
-                    }}
-                    disabled={isSubmittingAction}
-                    className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "check"
-                        ? "border-yellow-500/60 bg-yellow-500/20"
-                        : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                      }`}
-                  >
-                    {tActions("check")}
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPendingAction((prev) => (prev === "call-any" ? null : "call-any"));
-                  }}
-                  disabled={isSubmittingAction}
-                  className={`h-9 flex-1 min-w-24 rounded-lg border px-1 text-xs font-semibold text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] transition-colors disabled:opacity-35 ${pendingAction === "call-any"
-                      ? "border-yellow-500/60 bg-yellow-500/20"
-                      : "border-white/35 bg-white/15 hover:border-white/50 hover:bg-white/20"
-                    }`}
-                >
-                  {tActions("call_any")}
-                </button>
-              </>
-            )}
-          </>
-        )}
+              )}
+            </>
+          )}
 
         {/* Regular action buttons for current player's turn */}
-        {isCurrentPlayerTurn && availableActions.map((action) => {
-          const isBetOrRaise = action.type === "bet" || action.type === "raise";
-          const isAllIn = action.type === "allin";
-          return (
-            <button
-              key={action.type}
-              type="button"
-              onClick={() => {
-                void runAction(action);
-              }}
-              disabled={
-                isSubmittingAction ||
-                (isAggressiveAction(action) &&
-                  (maxAffordableActionAmount < minimumActionAmount ||
-                    getAggressiveActionCost({
-                      action,
-                      amount: getAggressiveActionAmount(
+        {isCurrentPlayerTurn &&
+          availableActions.map((action) => {
+            const isBetOrRaise =
+              action.type === "bet" || action.type === "raise";
+            const isAllIn = action.type === "allin";
+            return (
+              <button
+                key={action.type}
+                type="button"
+                onClick={() => {
+                  void runAction(action);
+                }}
+                disabled={
+                  isSubmittingAction ||
+                  (gameState.gameMode !== "dealer" &&
+                    isAggressiveAction(action) &&
+                    (maxAffordableActionAmount < minimumActionAmount ||
+                      getAggressiveActionCost({
                         action,
-                        currentBet,
-                        maximumActionAmount,
-                      ),
-                      amountToCall,
-                      currentBet: gameState.currentBet,
-                    }) > (currentPlayer?.stack ?? 0)))
-              }
-              className={`h-9 flex-1 min-w-20 rounded-lg border px-1 text-xs font-semibold transition-all duration-150 disabled:opacity-35 ${isAllIn
-                  ? "border-amber-400/80 bg-amber-500/35 text-amber-200 shadow-[inset_0_0_14px_rgba(245,158,11,0.35),0_0_14px_rgba(245,158,11,0.3)] hover:border-amber-300 hover:bg-amber-500/45 font-bold"
-                  : isBetOrRaise
-                    ? "border-sky-400/70 bg-sky-500/30 text-sky-100 shadow-[inset_0_0_14px_rgba(14,165,233,0.3),0_0_12px_rgba(14,165,233,0.25)] hover:border-sky-300 hover:bg-sky-500/40"
-                    : "border-white/35 bg-white/15 text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] hover:border-white/50 hover:bg-white/25"
+                        amount: getAggressiveActionAmount(
+                          action,
+                          currentBet,
+                          maximumActionAmount,
+                        ),
+                        amountToCall,
+                        currentBet: gameState.currentBet,
+                      }) > (currentPlayer?.stack ?? 0)))
+                }
+                className={`h-9 min-w-20 flex-1 rounded-lg border px-1 text-xs font-semibold transition-all duration-150 disabled:opacity-35 ${
+                  isAllIn
+                    ? "border-amber-400/80 bg-amber-500/35 font-bold text-amber-200 shadow-[inset_0_0_14px_rgba(245,158,11,0.35),0_0_14px_rgba(245,158,11,0.3)] hover:border-amber-300 hover:bg-amber-500/45"
+                    : isBetOrRaise
+                      ? "border-sky-400/70 bg-sky-500/30 text-sky-100 shadow-[inset_0_0_14px_rgba(14,165,233,0.3),0_0_12px_rgba(14,165,233,0.25)] hover:border-sky-300 hover:bg-sky-500/40"
+                      : "border-white/35 bg-white/15 text-white shadow-[inset_0_0_12px_rgba(255,255,255,0.06)] hover:border-white/50 hover:bg-white/25"
                 }`}
-            >
-              {getActionButtonLabel({
-                action,
-                betAmount: currentBet,
-                maxAmount: maximumActionAmount,
-                t: tActions,
-              })}
-            </button>
-          );
-        })}
+              >
+                {getActionButtonLabel({
+                  action,
+                  betAmount: currentBet,
+                  maxAmount: maximumActionAmount,
+                  t: tActions,
+                })}
+              </button>
+            );
+          })}
       </div>
 
       <div className="mt-3 flex items-center justify-between text-xs text-white/45">
-        <span className={pendingAction ? "text-amber-300/80 font-medium" : ""}>
+        <span className={pendingAction ? "font-medium text-amber-300/80" : ""}>
           {isCurrentPlayerTurn
             ? "Your action"
             : pendingAction === "fold"
               ? tActions("fold_active")
               : pendingAction === "allin"
-                ? tActions("all_in_active", { amount: formatAmount(gameState.maxAllInAmount ?? 0) })
+                ? tActions("all_in_active", {
+                    amount: formatAmount(gameState.maxAllInAmount ?? 0),
+                  })
                 : pendingAction === "check-fold"
                   ? tActions("check_fold_active")
                   : pendingAction === "check"
                     ? tActions("check_active")
                     : pendingAction === "call"
-                      ? tActions("call_active", { amount: formatAmount(pendingCallAmount || amountToCall) })
+                      ? tActions("call_active", {
+                          amount: formatAmount(
+                            pendingCallAmount || amountToCall,
+                          ),
+                        })
                       : pendingAction === "call-any"
                         ? tActions("call_any_active")
                         : `Waiting for ${currentTurnPlayer?.displayName ?? "player"}`}
         </span>
         <span>{gameState.bettingRound}</span>
       </div>
-    </section>
+      </section>
+    </div>
   );
 }

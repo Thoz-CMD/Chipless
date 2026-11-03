@@ -25,6 +25,8 @@ export function PlayerAvatar({
   isCurrentTurn,
   hasFolded,
   profileFrame,
+  sizeClassName = "size-12",
+  hideBadges = false,
 }: {
   uid: string;
   name: string;
@@ -35,6 +37,8 @@ export function PlayerAvatar({
   isCurrentTurn: boolean;
   hasFolded?: boolean;
   profileFrame?: ProfileFrame;
+  sizeClassName?: string;
+  hideBadges?: boolean;
 }) {
   const tone = avatarTones[getAvatarIndex(uid) % avatarTones.length];
   const initial = name.trim().charAt(0).toUpperCase() || "?";
@@ -74,7 +78,7 @@ export function PlayerAvatar({
   };
 
   return (
-    <div className="relative flex size-12 items-center justify-center">
+    <div className={`relative flex ${sizeClassName} items-center justify-center`}>
       {/* Custom Frame Corner Accents */}
       {useCustomFrame && profileFrame.cornerAccents && (
         <>
@@ -109,7 +113,7 @@ export function PlayerAvatar({
       </div>
 
       {/* Dealer Button */}
-      {isDealer ? (
+      {isDealer && !hideBadges ? (
         <div
           className="pointer-events-none absolute -top-2 -right-2 z-20 flex size-7 items-center justify-center rounded-full border-2 border-white bg-white text-[11px] font-black shadow-[0_0_10px_rgba(255,255,255,0.4)] ring-1 ring-black"
           aria-label="Dealer"
@@ -124,7 +128,7 @@ export function PlayerAvatar({
       ) : null}
 
       {/* Win Streak "On Fire" Badge */}
-      {isOnFire ? (
+      {isOnFire && !hideBadges ? (
         <div
           className="animate-flame-pulse pointer-events-none absolute -top-4 left-1/2 z-40 flex items-center gap-1 rounded-full border border-amber-300/90 bg-gradient-to-r from-amber-500 via-orange-600 to-red-600 px-1.5 py-0.5 text-[9px] font-black tracking-tight text-white shadow-[0_0_16px_rgba(249,115,22,1)] select-none"
         >

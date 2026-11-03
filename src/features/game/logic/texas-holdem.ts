@@ -1,4 +1,5 @@
-export type BettingRound = "preflop" | "flop" | "turn" | "river" | "showdown" | "summary";
+export type BettingRound =
+  "preflop" | "flop" | "turn" | "river" | "showdown" | "summary";
 
 export type PlayerStatus = "active" | "folded" | "all-in";
 
@@ -39,9 +40,10 @@ export type HoldemGameState = {
   players: HoldemPlayerState[];
   communityCards?: string[];
   playerCards?: PlayerCardsByUid;
+  dealerDeckToken?: string;
   actionLog?: HoldemActionLogEntry[];
   lastAggressorPosition?: number;
-  gameMode?: "standard" | "allin";
+  gameMode?: "standard" | "allin" | "dealer";
   maxAllInAmount?: number;
 };
 
@@ -73,7 +75,8 @@ export type CreateHoldemGameInput = {
   dealerPosition: number;
   bigBlind: number;
   playerCards?: PlayerCardsByUid;
-  gameMode?: "standard" | "allin";
+  dealerDeckToken?: string;
+  gameMode?: "standard" | "allin" | "dealer";
   maxAllInAmount?: number;
 };
 
@@ -102,7 +105,8 @@ export function isHoldemGameState(value: unknown): value is HoldemGameState {
     typeof state.bigBlind === "number" &&
     (state.gameMode === undefined ||
       state.gameMode === "standard" ||
-      state.gameMode === "allin") &&
+      state.gameMode === "allin" ||
+      state.gameMode === "dealer") &&
     (state.maxAllInAmount === undefined ||
       typeof state.maxAllInAmount === "number") &&
     Array.isArray(state.players) &&
@@ -130,6 +134,8 @@ export function isHoldemGameState(value: unknown): value is HoldemGameState {
         state.communityCards.every((card) => typeof card === "string"))) &&
     (state.playerCards === undefined ||
       (Boolean(state.playerCards) && typeof state.playerCards === "object")) &&
+    (state.dealerDeckToken === undefined ||
+      typeof state.dealerDeckToken === "string") &&
     (state.actionLog === undefined ||
       (Array.isArray(state.actionLog) &&
         state.actionLog.every((entry) => {
@@ -293,7 +299,7 @@ function maybeAdvanceAfterAction(state: HoldemGameState): HoldemGameState {
       players: resetRoundContributions(state.players),
     };
   }
-  
+
   if (allActivePlayersMatchedBet(state)) {
     return moveToNextBettingRound(state);
   }
@@ -307,7 +313,19 @@ function maybeAdvanceAfterAction(state: HoldemGameState): HoldemGameState {
 function putChipsIn(
   player: HoldemPlayerState,
   amount: number,
+  allowNegativeStack = false,
 ): HoldemPlayerState {
+  if (allowNegativeStack) {
+    return {
+      ...player,
+      stack: player.stack - amount,
+      currentContribution: player.currentContribution + amount,
+      totalContribution: player.totalContribution + amount,
+      isAllIn: false,
+      hasActed: true,
+    };
+  }
+
   const contribution = Math.min(amount, player.stack);
 
   return {
@@ -389,6 +407,7 @@ export function createHoldemGameState({
   dealerPosition,
   bigBlind,
   playerCards = {},
+  dealerDeckToken,
   gameMode,
   maxAllInAmount,
 }: CreateHoldemGameInput): HoldemGameState {
@@ -419,11 +438,11 @@ export function createHoldemGameState({
       uid: player.uid,
       displayName: player.displayName,
       seatIndex: player.seatIndex,
-      stack: Math.max(0, stack - blind),
+      stack: gameMode === "dealer" ? stack - blind : Math.max(0, stack - blind),
       currentContribution: blind,
       totalContribution: blind,
       hasFolded: false,
-      isAllIn: stack - blind === 0 && stack > 0,
+      isAllIn: gameMode !== "dealer" && stack - blind === 0 && stack > 0,
       hasActed: false,
     };
   });
@@ -444,6 +463,7 @@ export function createHoldemGameState({
     playerCards,
     ...(gameMode ? { gameMode } : {}),
     ...(maxAllInAmount !== undefined ? { maxAllInAmount } : {}),
+    ...(dealerDeckToken ? { dealerDeckToken } : {}),
   };
 }
 
@@ -579,6 +599,8 @@ export function applyHoldemAction(
 ): HoldemGameState {
   const stateWithActionLog = appendActionLog(state, action);
   const player = state.players[state.currentTurn];
+  const putIn = (currentPlayer: HoldemPlayerState, amount: number) =>
+    putChipsIn(currentPlayer, amount, state.gameMode === "dealer");
 
   if (!player) {
     throw new Error("No current player to act.");
@@ -653,7 +675,7 @@ export function applyHoldemAction(
 
     return maybeAdvanceAfterAction({
       ...updateCurrentPlayer(stateWithActionLog, (currentPlayer) =>
-        putChipsIn(currentPlayer, amountToCall),
+        putIn(currentPlayer, amountToCall),
       ),
       pot: state.pot + amountToCall,
     });
@@ -666,7 +688,7 @@ export function applyHoldemAction(
 
     const stateAfterBet = updateCurrentPlayer(
       stateWithActionLog,
-      (currentPlayer) => putChipsIn(currentPlayer, action.amount),
+      (currentPlayer) => putIn(currentPlayer, action.amount),
     );
 
     return maybeAdvanceAfterAction({
@@ -692,7 +714,7 @@ export function applyHoldemAction(
 
   const stateAfterRaise = updateCurrentPlayer(
     stateWithActionLog,
-    (currentPlayer) => putChipsIn(currentPlayer, amountToCall + raiseIncrease),
+    (currentPlayer) => putIn(currentPlayer, amountToCall + raiseIncrease),
   );
 
   return maybeAdvanceAfterAction({

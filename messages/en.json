@@ -24,6 +24,12 @@
     "room_pin": "Room PIN",
     "room_pin_placeholder": "1234",
     "room_pin_description": "Players will need this PIN to join the room.",
+    "room_mode": "Game Mode",
+    "room_mode_description": "Choose the classic table or let the web act as the dealer.",
+    "room_mode_chipless": "Chipless Table",
+    "room_mode_chipless_description": "Use the existing table flow with shared player-managed results.",
+    "room_mode_dealer": "Web Dealer",
+    "room_mode_dealer_description": "The web shuffles, deals cards, and controls the turn order.",
     "big_blind": "Minimum entry bet (THB)",
     "big_blind_description": "This is the amount required to open and reveal cards.",
     "button": "Create Room"
@@ -66,6 +72,7 @@
     "button": "Join Room"
   },
   "game": {
+    "web_dealer_mode": "Web Dealer",
     "copy_invite_link": "Copy invite link",
     "delete_room": "Delete room",
     "deleting_room": "Deleting room",

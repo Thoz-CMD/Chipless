@@ -93,7 +93,37 @@ export async function startGame(roomId: string): Promise<void> {
       players.length === 2
         ? (bigBlindPosition + 1) % players.length
         : (bigBlindPosition - 2 + players.length) % players.length;
-    const allInMode = settings?.allInMode === true;
+    const dealerMode = settings?.roomMode === "dealer";
+    const allInMode = !dealerMode && settings?.allInMode === true;
+
+    if (dealerMode) {
+      const idToken = await getFirebaseAuth().currentUser?.getIdToken();
+      if (!idToken) {
+        throw new StartGameError("Please sign in before starting the game.", {
+          code: "unauthenticated",
+        });
+      }
+
+      const response = await fetch("/api/dealer/start-game", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId, idToken }),
+      });
+      const responseValue: unknown = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          responseValue &&
+          typeof responseValue === "object" &&
+          typeof (responseValue as Record<string, unknown>).error === "string"
+            ? (responseValue as Record<string, string>).error
+            : "Unable to start dealer game.";
+        throw new StartGameError(message, { code: "dealer-start-failed" });
+      }
+
+      return;
+    }
+
     const maxAllInAmount =
       typeof settings?.maxAllInAmount === "number"
         ? settings.maxAllInAmount
@@ -107,7 +137,11 @@ export async function startGame(roomId: string): Promise<void> {
       })),
       dealerPosition,
       bigBlind,
-      ...(allInMode ? { gameMode: "allin" as const, maxAllInAmount } : {}),
+      ...(dealerMode
+        ? { gameMode: "dealer" as const }
+        : allInMode
+          ? { gameMode: "allin" as const, maxAllInAmount }
+          : {}),
     });
 
     await update(ref(database, `rooms/${roomId}`), {

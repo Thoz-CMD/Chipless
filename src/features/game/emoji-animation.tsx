@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import type { EmojiReaction } from "@/features/game/emoji-reactions";
 import { getEmojiAnimation, EMOJI_ANIMATIONS, EMOJI_LIST } from "@/features/game/emoji-reactions";
 
@@ -20,6 +21,108 @@ function getSeatCoordinates(index: number, total: number, currentUid?: string): 
   };
 }
 
+function SwipeableSpamSticker({
+  position,
+  imageSrc,
+  label,
+  emoji,
+  stickerSize,
+}: {
+  position: {
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    delay: number;
+    rotation: number;
+    scale: number;
+  };
+  imageSrc?: string;
+  label: string;
+  emoji: string;
+  stickerSize: number;
+}) {
+  const [isDismissed, setIsDismissed] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isSwipingAway, setIsSwipingAway] = useState(false);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handlePointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (isSwipingAway) return;
+    swipeStartRef.current = { x: event.clientX, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = swipeStartRef.current;
+    if (!start || isSwipingAway) return;
+
+    setOffset({ x: event.clientX - start.x, y: event.clientY - start.y });
+  };
+
+  const handlePointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start) return;
+
+    const delta = {
+      x: event.clientX - start.x,
+      y: event.clientY - start.y,
+    };
+    const distance = Math.hypot(delta.x, delta.y);
+
+    if (distance < 48) {
+      setOffset({ x: 0, y: 0 });
+      return;
+    }
+
+    const exitDistance = Math.max(window.innerWidth, window.innerHeight) * 1.25;
+    setIsSwipingAway(true);
+    setOffset({
+      x: delta.x + (delta.x / distance) * exitDistance,
+      y: delta.y + (delta.y / distance) * exitDistance,
+    });
+    window.setTimeout(() => setIsDismissed(true), 240);
+  };
+
+  if (isDismissed) return null;
+
+  return (
+    <div
+      className="pointer-events-auto absolute animate-sticker-spam"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      style={{
+        left: `${position.startX}%`,
+        top: `${position.startY}%`,
+        animationDelay: `${position.delay}s`,
+        transform: `translate(-50%, -50%) rotate(${position.rotation}deg) scale(${position.scale})`,
+        translate: `${offset.x}px ${offset.y}px`,
+        transition: isSwipingAway
+          ? "translate 240ms cubic-bezier(0.22, 1, 0.36, 1)"
+          : "translate 80ms ease-out",
+        '--start-x': `${position.startX}%`,
+        '--start-y': `${position.startY}%`,
+        '--end-x': `${position.endX}%`,
+        '--end-y': `${position.endY}%`,
+        touchAction: "none",
+      } as React.CSSProperties}
+    >
+      {imageSrc ? (
+        <img
+          src={imageSrc}
+          alt={label}
+          className="object-contain opacity-90"
+          style={{ width: `${stickerSize}px`, height: `${stickerSize}px` }}
+        />
+      ) : (
+        <span className="text-[100px]">{emoji}</span>
+      )}
+    </div>
+  );
+}
+
 export function EmojiAnimation({
   reaction,
   playerIndex,
@@ -36,6 +139,64 @@ export function EmojiAnimation({
   onComplete: (id: string) => void;
 }) {
   const [isVisible, setIsVisible] = useState(true);
+  const [swipeOffset, setSwipeOffset] = useState({ x: 0, y: 0 });
+  const [isSwipingAway, setIsSwipingAway] = useState(false);
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
+
+  const handleSwipeStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (isSwipingAway) return;
+    swipeStartRef.current = { x: event.clientX, y: event.clientY };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleSwipeMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = swipeStartRef.current;
+    if (!start || isSwipingAway) return;
+
+    setSwipeOffset({
+      x: event.clientX - start.x,
+      y: event.clientY - start.y,
+    });
+  };
+
+  const handleSwipeEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const start = swipeStartRef.current;
+    swipeStartRef.current = null;
+    if (!start) return;
+
+    const offset = {
+      x: event.clientX - start.x,
+      y: event.clientY - start.y,
+    };
+    const distance = Math.hypot(offset.x, offset.y);
+
+    if (distance < 48) {
+      setSwipeOffset({ x: 0, y: 0 });
+      return;
+    }
+
+    const exitDistance = Math.max(window.innerWidth, window.innerHeight) * 1.25;
+    setIsSwipingAway(true);
+    setSwipeOffset({
+      x: offset.x + (offset.x / distance) * exitDistance,
+      y: offset.y + (offset.y / distance) * exitDistance,
+    });
+    window.setTimeout(() => onComplete(reaction.id), 240);
+  };
+
+  const swipeHandlers = {
+    onPointerDown: handleSwipeStart,
+    onPointerMove: handleSwipeMove,
+    onPointerUp: handleSwipeEnd,
+  };
+
+  const swipeStyle = {
+    translate: `${swipeOffset.x}px ${swipeOffset.y}px`,
+    transition: isSwipingAway
+      ? "translate 240ms cubic-bezier(0.22, 1, 0.36, 1)"
+      : "translate 80ms ease-out",
+    touchAction: "none" as const,
+  };
 
   // Find the emoji data
   const emojiData = EMOJI_LIST.find((e) => e.emoji === reaction.emoji);
@@ -87,31 +248,14 @@ export function EmojiAnimation({
     return (
       <div className="pointer-events-none fixed inset-0 z-50">
         {spamPositions.map((pos, idx) => (
-          <div
+          <SwipeableSpamSticker
             key={`${reaction.id}-spam-${idx}`}
-            className="absolute animate-sticker-spam"
-            style={{
-              left: `${pos.startX}%`,
-              top: `${pos.startY}%`,
-              animationDelay: `${pos.delay}s`,
-              transform: `translate(-50%, -50%) rotate(${pos.rotation}deg) scale(${pos.scale})`,
-              '--start-x': `${pos.startX}%`,
-              '--start-y': `${pos.startY}%`,
-              '--end-x': `${pos.endX}%`,
-              '--end-y': `${pos.endY}%`,
-            } as React.CSSProperties}
-          >
-            {imageSrc ? (
-              <img
-                src={imageSrc}
-                alt={emojiData?.label || "spam sticker"}
-                className="object-contain opacity-90"
-                style={{ width: `${stickerSize}px`, height: `${stickerSize}px` }}
-              />
-            ) : (
-              <span className="text-[100px]">{reaction.emoji}</span>
-            )}
-          </div>
+            position={pos}
+            imageSrc={imageSrc}
+            label={emojiData?.label || "spam sticker"}
+            emoji={reaction.emoji}
+            stickerSize={stickerSize}
+          />
         ))}
       </div>
     );
@@ -123,7 +267,11 @@ export function EmojiAnimation({
     const bigStickerSize = isPillowSpam ? 400 : 300;
 
     return (
-      <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center">
+      <div
+        className="pointer-events-auto fixed inset-0 z-50 flex items-center justify-center"
+        {...swipeHandlers}
+        style={swipeStyle}
+      >
         {/* Big sticker in center with special animation */}
         <div className="animate-sticker-big">
           {imageSrc ? (
@@ -177,7 +325,8 @@ export function EmojiAnimation({
   if (endX !== undefined && endY !== undefined) {
     return (
       <div
-        className="pointer-events-none absolute z-50 animate-sticker-fly"
+        className="pointer-events-auto absolute z-50 animate-sticker-fly"
+        {...swipeHandlers}
         style={{
           left: `${startX}%`,
           top: `${startY}%`,
@@ -186,6 +335,7 @@ export function EmojiAnimation({
           filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))",
           width: `${floatingStickerSize}px`,
           height: `${floatingStickerSize}px`,
+          ...swipeStyle,
         } as React.CSSProperties}
       >
         {imageSrc ? (
@@ -207,13 +357,15 @@ export function EmojiAnimation({
 
   return (
     <div
-      className={`pointer-events-none absolute z-50 ${animationClass}`}
+      className={`pointer-events-auto absolute z-50 ${animationClass}`}
+      {...swipeHandlers}
       style={{
         left: `${startX}%`,
         top: `${startY}%`,
         filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))",
         width: `${floatingStickerSize}px`,
         height: `${floatingStickerSize}px`,
+        ...swipeStyle,
       }}
     >
       {imageSrc ? (

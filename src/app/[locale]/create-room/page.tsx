@@ -24,8 +24,8 @@ export default async function CreateRoomPage() {
       />
       <div className="absolute inset-0 bg-black/25" />
 
-      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[430px] flex-col px-6 pt-[calc(env(safe-area-inset-top)+26px)] pb-[calc(env(safe-area-inset-bottom)+28px)]">
-        <header className="mb-8">
+      <div className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[460px] flex-col px-5 pt-[calc(env(safe-area-inset-top)+20px)] pb-[calc(env(safe-area-inset-bottom)+24px)] sm:px-6">
+        <header className="mb-5">
           <Button
             asChild
             variant="ghost"
@@ -38,13 +38,11 @@ export default async function CreateRoomPage() {
           </Button>
         </header>
 
-        <section className="mb-7 text-center">
-          <h2 className="font-audiowide text-[46px] leading-tight tracking-normal drop-shadow-[0_0_16px_rgba(255,255,255,0.22)]">
+        <section className="mb-5 text-center">
+          <h2 className="font-audiowide text-3xl leading-tight tracking-normal drop-shadow-[0_0_12px_rgba(255,255,255,0.18)] sm:text-4xl">
             {t("title")}
           </h2>
-          <p className="mt-2 text-base text-white/60">
-            {t("subtitle")}
-          </p>
+          <p className="mt-1.5 text-sm text-white/60">{t("subtitle")}</p>
         </section>
 
         <CreateRoomForm />

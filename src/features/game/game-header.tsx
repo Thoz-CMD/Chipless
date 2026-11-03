@@ -1,9 +1,10 @@
-import { ArrowLeft, Menu, Settings, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, Cpu, Menu, Settings, Share2, Trash2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslations } from "next-intl";
 
 export function GameHeader({
   roomName,
+  roomMode,
   onCopyInviteLink,
   onDeleteRoom,
   isDeletingRoom = false,
@@ -15,6 +16,7 @@ export function GameHeader({
   emojiButton,
 }: {
   roomName: string;
+  roomMode?: "chipless" | "dealer";
   onCopyInviteLink: () => void;
   onDeleteRoom?: () => void;
   isDeletingRoom?: boolean;
@@ -43,9 +45,17 @@ export function GameHeader({
               <ArrowLeft className="size-5" aria-hidden="true" />
             </button>
           ) : null}
-          <p className="text-base font-bold tracking-normal whitespace-nowrap text-white sm:text-xl">
-            {tCommon("room")}: {roomName}
-          </p>
+          <div className="min-w-0">
+            <p className="truncate text-base font-bold tracking-normal text-white sm:text-xl">
+              {tCommon("room")}: {roomName}
+            </p>
+            {roomMode === "dealer" ? (
+              <span className="mt-1 inline-flex items-center gap-1 rounded-md border border-white/20 bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white/75">
+                <Cpu className="size-3" aria-hidden="true" />
+                {t("web_dealer_mode")}
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-1 rounded-lg border border-white/20 bg-black/45 p-1">
@@ -55,7 +65,9 @@ export function GameHeader({
               onClick={onDeleteRoom}
               disabled={isDeletingRoom}
               className="grid size-9 shrink-0 place-items-center rounded text-rose-200 hover:bg-rose-500/20 focus:ring-2 focus:ring-rose-200/60 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
-              aria-label={isDeletingRoom ? t("deleting_room") : t("delete_room")}
+              aria-label={
+                isDeletingRoom ? t("deleting_room") : t("delete_room")
+              }
               title={isDeletingRoom ? t("deleting_room") : t("delete_room")}
             >
               <Trash2 className="size-4" aria-hidden="true" />

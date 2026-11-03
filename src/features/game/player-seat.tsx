@@ -1,8 +1,14 @@
 import { PlayerAvatar } from "@/features/game/player-avatar";
+import { PlayingCardFace } from "@/features/game/playing-card-face";
+import { HandCategoryLabel } from "@/features/game/hand-category-label";
+import type { HandCategory } from "@/features/game/logic/hand-evaluator";
 import type { RoomPlayerListItem } from "@/features/rooms/services/subscribe-room-players";
 import type { CSSProperties } from "react";
 import type { TipNotification } from "@/features/game/tip-notification";
-import { TipNotificationAtPlayer, TipNotificationAtSender } from "@/features/game/tip-notification";
+import {
+  TipNotificationAtPlayer,
+  TipNotificationAtSender,
+} from "@/features/game/tip-notification";
 
 export function PlayerSeat({
   player,
@@ -16,7 +22,9 @@ export function PlayerSeat({
   winnerAmount,
   lastAction,
   lastActionAmount,
-  rank,
+  privateCards,
+  handCategory,
+  hideAvatarBadges = false,
   style,
   seatCoordinates,
   isSelected,
@@ -38,6 +46,9 @@ export function PlayerSeat({
   winnerAmount?: number;
   lastAction?: string;
   lastActionAmount?: string;
+  privateCards?: readonly string[];
+  handCategory?: HandCategory;
+  hideAvatarBadges?: boolean;
   rank?: number;
   style: CSSProperties;
   seatCoordinates?: { x: number; y: number };
@@ -46,7 +57,10 @@ export function PlayerSeat({
   isDragTarget?: boolean;
   onClick?: () => void;
   tipNotification?: TipNotification | null;
-  senderTipNotification?: { notification: TipNotification; toName: string } | null;
+  senderTipNotification?: {
+    notification: TipNotification;
+    toName: string;
+  } | null;
   onTipNotificationComplete?: (id: string) => void;
 }) {
   const name = player.displayName ?? "Unnamed";
@@ -77,14 +91,14 @@ export function PlayerSeat({
       ? "Joined while hand in progress"
       : `Click to view ${name}'s summary`;
 
-  const isBB = lastAction === "บิ๊กบลายด์" || lastAction === "Big Blind";
-  const isSB = lastAction === "สมอลบลายด์" || lastAction === "Small Blind";
-  const isFold = lastAction === "หมอบ" || lastAction === "Fold";
-  const isCheck = lastAction === "ผ่าน" || lastAction === "Check";
-  const isCall = lastAction === "ตาม" || lastAction === "Call";
-  const isBet = lastAction === "เดิมพัน" || lastAction === "Bet";
-  const isRaise = lastAction === "เรส" || lastAction === "Raise";
-  const isAllIn = lastAction === "ออลอิน" || lastAction === "All-In";
+  const isBB = lastAction === "เธเธดเนเธเธเธฅเธฒเธขเธ”เน" || lastAction === "Big Blind";
+  const isSB = lastAction === "เธชเธกเธญเธฅเธเธฅเธฒเธขเธ”เน" || lastAction === "Small Blind";
+  const isFold = lastAction === "เธซเธกเธญเธ" || lastAction === "Fold";
+  const isCheck = lastAction === "เธเนเธฒเธ" || lastAction === "Check";
+  const isCall = lastAction === "เธ•เธฒเธก" || lastAction === "Call";
+  const isBet = lastAction === "เน€เธ”เธดเธกเธเธฑเธ" || lastAction === "Bet";
+  const isRaise = lastAction === "เน€เธฃเธช" || lastAction === "Raise";
+  const isAllIn = lastAction === "เธญเธญเธฅเธญเธดเธ" || lastAction === "All-In";
 
   const getActionBadgeStyle = () => {
     if (isFold) {
@@ -114,40 +128,49 @@ export function PlayerSeat({
     <div
       data-player-uid={player.uid}
       onClick={onClick}
-      className={`group absolute w-24 -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-all duration-200 select-none touch-manipulation ${seatOpacityClass}`}
+      className={`group absolute w-24 -translate-x-1/2 -translate-y-1/2 cursor-pointer touch-manipulation transition-all duration-200 select-none ${seatOpacityClass}`}
       style={style}
       title={title}
     >
-      <div className={`relative mx-auto w-fit transition-transform duration-150 ${isSelected ? "scale-110" : isArrangingSeats ? "hover:scale-105" : "group-hover:scale-105"}`}>
-        <div
-          className={
-            isSelected
-              ? "rounded-full ring-4 ring-amber-400 ring-offset-2 ring-offset-black shadow-[0_0_24px_rgba(245,158,11,0.95)] animate-pulse"
-              : isArrangingSeats
-                ? "rounded-full ring-2 ring-sky-400 ring-offset-2 ring-offset-black shadow-[0_0_16px_rgba(56,189,248,0.75)] transition-all hover:ring-sky-300"
-                : isDragTarget
-                  ? "rounded-full ring-2 ring-sky-400/90 ring-offset-2 ring-offset-black shadow-[0_0_20px_rgba(14,165,233,0.7)] scale-105"
-                  : undefined
-          }
-        >
-          <PlayerAvatar
-            uid={player.uid}
-            name={name}
-            photoUrl={player.photoUrl}
-            winStreak={winStreak}
-            isCurrentUser={isCurrentUser}
-            isDealer={isDealer && !isWaitingForNextHand}
-            isCurrentTurn={isCurrentTurn && !isWaitingForNextHand}
-            hasFolded={hasFolded}
-          />
-        </div>
-
-        {/* Rank Badge - Top Left */}
-        {rank !== undefined ? (
-          <div className="pointer-events-none absolute -top-1 -left-1 z-50 flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-amber-600 text-[10px] font-black text-black shadow-[0_2px_8px_rgba(0,0,0,0.5)] ring-2 ring-black/30">
-            #{rank}
+      <div
+        className={`relative mx-auto w-fit transition-transform duration-150 ${isSelected ? "scale-110" : isArrangingSeats ? "hover:scale-105" : "group-hover:scale-105"}`}
+      >
+        {privateCards && privateCards.length > 0 ? (
+          <div className="pointer-events-none absolute -top-8 left-1/2 z-10 h-11 w-[3.375rem] -translate-x-1/2">
+            {handCategory ? (
+              <HandCategoryLabel category={handCategory} className="-top-8 left-1/2 -translate-x-1/2" />
+            ) : null}
+            {privateCards.map((card, index) => (
+              <div key={card} className={`absolute top-0 ${index === 0 ? "left-0 -rotate-6" : "right-0 rotate-6"}`}>
+                <PlayingCardFace card={card} showdown />
+              </div>
+            ))}
           </div>
         ) : null}
+        <div
+            className={`relative z-20 ${
+              isSelected
+                ? "animate-pulse rounded-full shadow-[0_0_24px_rgba(245,158,11,0.95)] ring-4 ring-amber-400 ring-offset-2 ring-offset-black"
+                : isArrangingSeats
+                  ? "rounded-full shadow-[0_0_16px_rgba(56,189,248,0.75)] ring-2 ring-sky-400 ring-offset-2 ring-offset-black transition-all hover:ring-sky-300"
+                  : isDragTarget
+                    ? "scale-105 rounded-full shadow-[0_0_20px_rgba(14,165,233,0.7)] ring-2 ring-sky-400/90 ring-offset-2 ring-offset-black"
+                  : ""
+            }`}
+          >
+            <PlayerAvatar
+              uid={player.uid}
+              name={name}
+              photoUrl={player.photoUrl}
+              winStreak={winStreak}
+              isCurrentUser={isCurrentUser}
+              isDealer={isDealer && !isWaitingForNextHand}
+              isCurrentTurn={isCurrentTurn && !isWaitingForNextHand}
+              hasFolded={hasFolded}
+              sizeClassName="size-11 sm:size-12"
+              hideBadges={hideAvatarBadges}
+            />
+          </div>
 
         {isWaitingForNextHand ? (
           <div className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 rounded-full border border-white/25 bg-black/85 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-[0_0_10px_rgba(255,255,255,0.12)]">
@@ -156,7 +179,7 @@ export function PlayerSeat({
         ) : null}
 
         {formattedWinnerAmount ? (
-          <div className="chipless-winner-amount pointer-events-none absolute -top-3 -left-2 z-50 text-sm font-black text-emerald-300 drop-shadow-[0_0_8px_rgba(52,211,153,0.95)] tabular-nums">
+          <div className="chipless-winner-amount pointer-events-none absolute -top-3 -left-2 z-50 text-sm font-black text-emerald-300 tabular-nums drop-shadow-[0_0_8px_rgba(52,211,153,0.95)]">
             {formattedWinnerAmount}
           </div>
         ) : null}
@@ -169,19 +192,23 @@ export function PlayerSeat({
       </div>
 
       <p
-        className={`mt-1 truncate text-center text-xs leading-tight font-semibold drop-shadow-[0_1px_4px_rgba(0,0,0,0.85)] group-hover:text-white ${nameColorClass}`}
-      >
-        {name}
+          className={`mt-1 truncate text-center text-xs leading-tight font-semibold drop-shadow-[0_1px_4px_rgba(0,0,0,0.85)] group-hover:text-white ${nameColorClass}`}
+        >
+          {name}
       </p>
 
       {lastAction && !isWaitingForNextHand && actionBadgeStyle ? (
         <div
-          className={`mx-auto mt-1 flex min-w-[60px] w-fit flex-col items-center justify-center rounded-full px-2 py-0.5 text-[9px] font-bold leading-none ${actionBadgeStyle}`}
-          style={{ WebkitTextStroke: '0.5px currentColor' }}
+          className={`mx-auto mt-1 flex w-fit min-w-[60px] flex-col items-center justify-center rounded-full px-2 py-0.5 text-[9px] leading-none font-bold ${actionBadgeStyle}`}
+          style={{ WebkitTextStroke: "0.5px currentColor" }}
         >
-          <div className="whitespace-nowrap text-center uppercase tracking-wide">{lastAction}</div>
+          <div className="text-center tracking-wide whitespace-nowrap uppercase">
+            {lastAction}
+          </div>
           {lastActionAmount ? (
-            <div className="whitespace-nowrap text-center text-[9px] font-bold leading-none">{lastActionAmount}</div>
+            <div className="text-center text-[9px] leading-none font-bold whitespace-nowrap">
+              {lastActionAmount}
+            </div>
           ) : null}
         </div>
       ) : null}
