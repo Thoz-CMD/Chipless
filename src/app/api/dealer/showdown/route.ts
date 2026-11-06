@@ -101,6 +101,23 @@ export async function POST(request: Request) {
 
     if (contenders.length === 1) {
       const winner = contenders[0];
+      const revealedPlayerCards: Record<string, readonly string[]> = {};
+
+      for (const player of hand.players) {
+        const privatePlayer =
+          isRecord(privateHands) && isRecord(privateHands[player.uid])
+            ? (privateHands[player.uid] as Record<string, unknown>)
+            : null;
+        const privateValue = privatePlayer?.cards;
+
+        if (
+          Array.isArray(privateValue) &&
+          privateValue.every((card) => typeof card === "string")
+        ) {
+          revealedPlayerCards[player.uid] = privateValue;
+        }
+      }
+
       const playerResults = Object.fromEntries(
         hand.players.map((player) => [
           player.uid,
@@ -128,6 +145,7 @@ export async function POST(request: Request) {
         ...hand,
         bettingRound: "summary" as const,
         currentTurn: -1,
+        playerCards: revealedPlayerCards,
       };
 
       await database.ref().update({
