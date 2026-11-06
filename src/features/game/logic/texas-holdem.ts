@@ -80,6 +80,14 @@ export type CreateHoldemGameInput = {
   maxAllInAmount?: number;
 };
 
+const NORMAL_MODE_COMMUNITY_CARDS = [
+  "T-hearts",
+  "J-clubs",
+  "Q-diamonds",
+  "K-spades",
+  "A-hearts",
+] as const;
+
 export function isHoldemGameState(value: unknown): value is HoldemGameState {
   if (!value || typeof value !== "object") {
     return false;
@@ -264,6 +272,13 @@ function moveToNextBettingRound(state: HoldemGameState): HoldemGameState {
       : nextRound(state.bettingRound);
   const players = resetRoundContributions(state.players);
   const stateWithoutLastAggressor = { ...state };
+  const communityCards =
+    state.gameMode === undefined
+      ? NORMAL_MODE_COMMUNITY_CARDS.slice(
+          0,
+          bettingRound === "flop" ? 3 : bettingRound === "turn" ? 4 : 5,
+        )
+      : state.communityCards;
 
   delete stateWithoutLastAggressor.lastAggressorPosition;
 
@@ -274,6 +289,7 @@ function moveToNextBettingRound(state: HoldemGameState): HoldemGameState {
       currentBet: 0,
       currentTurn: -1,
       players,
+      communityCards,
     };
   }
 
@@ -284,6 +300,7 @@ function moveToNextBettingRound(state: HoldemGameState): HoldemGameState {
     minimumRaise: 1,
     currentTurn: firstActiveLeftOfDealer({ ...state, players }) ?? -1,
     players,
+    communityCards,
   };
 }
 
