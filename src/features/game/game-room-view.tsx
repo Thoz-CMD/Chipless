@@ -201,6 +201,7 @@ export function GameRoomView({
   const isGameStarted = room.status === "playing";
   const holdemGameState = room.gameState?.hand ?? null;
   const handNumber = room.gameState?.handNumber ?? 1;
+  const isSymbolicCommunityBoard = room.settings.roomMode !== "dealer";
   const currentHandCards =
     privateDealerCards?.handNumber === handNumber
       ? privateDealerCards.cards
@@ -220,6 +221,7 @@ export function GameRoomView({
     ...(holdemGameState?.communityCards?.slice(0, revealedCommunityCount) ?? []),
   ];
   const currentHandEvaluation = (() => {
+    if (isSymbolicCommunityBoard) return null;
     if (visibleHandCards.length < 5 || visibleHandCards.length > 7) return null;
     try {
       return evaluateBestHand(visibleHandCards);
@@ -244,7 +246,9 @@ export function GameRoomView({
   const handHint =
     shouldRecommendStraight ? `: ${straightDrawOutRanks.join(" or ")}` : undefined;
   const highlightedHandCards =
-    shouldRecommendStraight
+    isSymbolicCommunityBoard
+      ? []
+      : shouldRecommendStraight
       ? straightDrawCards
       : madeHandCards.length > 0
         ? madeHandCards
