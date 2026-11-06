@@ -117,7 +117,14 @@ npm run typecheck
 npm run build
 ```
 
-Then configure the same `NEXT_PUBLIC_FIREBASE_*` variables in your hosting provider.
+Then configure these variables in your hosting provider:
+
+- The seven `NEXT_PUBLIC_FIREBASE_*` variables above for the browser client.
+- `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY` from a Firebase service account for the server-side dealer API.
+- `FIREBASE_DATABASE_URL`, using the same Realtime Database URL as `NEXT_PUBLIC_FIREBASE_DATABASE_URL`.
+- `DEALER_DECK_SECRET`, a long random secret. Keep this value stable across deployments so existing dealer deck tokens remain readable.
+
+The Web Dealer start-game endpoint requires the server-side Firebase credentials and `DEALER_DECK_SECRET`; without them, the browser can load the room but starting a Web Dealer game returns an error.
 
 This repo currently includes only Realtime Database Firebase CLI config. It does not configure Firebase Hosting for the Next.js app.
 
