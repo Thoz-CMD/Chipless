@@ -425,7 +425,6 @@ export function GameRoomView({
       !isHost ||
       room.settings.roomMode !== "dealer" ||
       holdemGameState?.bettingRound !== "showdown" ||
-      (holdemGameState.communityCards?.length ?? 0) !== 5 ||
       room.gameState?.handNumber === undefined ||
       requestedDealerShowdownRef.current === room.gameState.handNumber
     ) {

@@ -70,10 +70,7 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    if (
-      hand.bettingRound !== "showdown" ||
-      (hand.communityCards?.length ?? 0) !== 5
-    ) {
+    if (hand.bettingRound !== "showdown") {
       return NextResponse.json(
         { error: "Showdown is not ready." },
         { status: 409 },
@@ -93,6 +90,54 @@ export async function POST(request: Request) {
         { error: "No active players remain." },
         { status: 409 },
       );
+    }
+
+    if ((hand.communityCards?.length ?? 0) !== 5 && contenders.length !== 1) {
+      return NextResponse.json(
+        { error: "Showdown is not ready." },
+        { status: 409 },
+      );
+    }
+
+    if (contenders.length === 1) {
+      const winner = contenders[0];
+      const playerResults = Object.fromEntries(
+        hand.players.map((player) => [
+          player.uid,
+          {
+            uid: player.uid,
+            displayName: player.displayName,
+            contribution: player.totalContribution,
+            net:
+              (player.uid === winner.uid ? hand.pot : 0) -
+              player.totalContribution,
+            hasFolded: player.hasFolded,
+          },
+        ]),
+      );
+      const settlement = {
+        handNumber,
+        winnerUid: winner.uid,
+        winnerUids: [winner.uid],
+        winnerName: winner.displayName,
+        pot: hand.pot,
+        playerResults,
+        createdAt: Date.now(),
+      };
+      const nextHand = {
+        ...hand,
+        bettingRound: "summary" as const,
+        currentTurn: -1,
+      };
+
+      await database.ref().update({
+        [`rooms/${payload.roomId}/gameState/hand`]: nextHand,
+        [`rooms/${payload.roomId}/gameState/settlements/${handNumber}`]:
+          settlement,
+        [`rooms/${payload.roomId}/updatedAt`]: Date.now(),
+      });
+
+      return NextResponse.json({ ok: true, settlement });
     }
 
     const evaluated = contenders.map((player) => {
