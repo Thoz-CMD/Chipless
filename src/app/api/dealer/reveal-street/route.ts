@@ -5,8 +5,8 @@ import {
   revealCommunityCards,
 } from "@/features/game/services/dealer-deck";
 import {
-  getFirebaseAdminAuth,
   getFirebaseAdminDatabase,
+  verifyFirebaseIdToken,
 } from "@/lib/firebase/admin";
 import { isHoldemGameState } from "@/features/game/logic/texas-holdem";
 
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const auth = await getFirebaseAdminAuth().verifyIdToken(payload.idToken);
+    const auth = await verifyFirebaseIdToken(payload.idToken);
     const database = getFirebaseAdminDatabase();
     const roomRef = database.ref(`rooms/${payload.roomId}`);
     const roomSnapshot = await roomRef.once("value");

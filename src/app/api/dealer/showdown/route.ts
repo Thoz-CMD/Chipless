@@ -6,8 +6,8 @@ import {
 } from "@/features/game/logic/hand-evaluator";
 import { isHoldemGameState } from "@/features/game/logic/texas-holdem";
 import {
-  getFirebaseAdminAuth,
   getFirebaseAdminDatabase,
+  verifyFirebaseIdToken,
 } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
@@ -46,8 +46,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const uid = (await getFirebaseAdminAuth().verifyIdToken(payload.idToken))
-      .uid;
+    const uid = (await verifyFirebaseIdToken(payload.idToken)).uid;
     const database = getFirebaseAdminDatabase();
     const roomSnapshot = await database
       .ref(`rooms/${payload.roomId}`)

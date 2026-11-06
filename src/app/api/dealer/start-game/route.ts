@@ -6,8 +6,8 @@ import {
   dealHoleCards,
 } from "@/features/game/services/dealer-deck";
 import {
-  getFirebaseAdminAuth,
   getFirebaseAdminDatabase,
+  verifyFirebaseIdToken,
 } from "@/lib/firebase/admin";
 
 export const runtime = "nodejs";
@@ -47,9 +47,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const decodedToken = await getFirebaseAdminAuth().verifyIdToken(
-      payload.idToken,
-    );
+    const decodedToken = await verifyFirebaseIdToken(payload.idToken);
     const database = getFirebaseAdminDatabase();
     const roomSnapshot = await database
       .ref(`rooms/${payload.roomId}`)
