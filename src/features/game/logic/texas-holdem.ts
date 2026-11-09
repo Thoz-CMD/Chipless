@@ -278,7 +278,7 @@ function moveToNextBettingRound(state: HoldemGameState): HoldemGameState {
           0,
           bettingRound === "flop" ? 3 : bettingRound === "turn" ? 4 : 5,
         )
-      : state.communityCards;
+      : (state.communityCards ?? []);
 
   delete stateWithoutLastAggressor.lastAggressorPosition;
 
