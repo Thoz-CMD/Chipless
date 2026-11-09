@@ -11,6 +11,7 @@
   },
   "home": {
     "title": "Chipless",
+    "version": "Version {version}",
     "create_room": "Create Room",
     "join_room": "Join Room",
     "share_link_description": "Share a link to invite players",

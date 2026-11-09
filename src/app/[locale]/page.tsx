@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
+import packageJson from "../../../package.json";
 import { Link } from "@/i18n/routing";
 import {
   Link as LinkIcon,
@@ -54,6 +55,9 @@ export default async function Home() {
             <h1 className="font-audiowide mt-[clamp(12px,2svh,24px)] text-center text-[clamp(42px,14vw,60px)] leading-none tracking-normal text-white drop-shadow-[0_0_14px_rgba(255,255,255,0.35)]">
               {t("title")}
             </h1>
+            <p className="mt-2 text-xs tracking-normal text-white/65">
+              {t("version", { version: packageJson.version })}
+            </p>
           </div>
 
           <section className="w-full space-y-[clamp(14px,2.6svh,20px)]">

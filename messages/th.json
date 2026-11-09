@@ -11,6 +11,7 @@
   },
   "home": {
     "title": "Chipless",
+    "version": "เวอร์ชัน {version}",
     "create_room": "สร้างห้อง",
     "join_room": "เข้าร่วมห้อง",
     "share_link_description": "แชร์ลิงก์เชิญผู้เล่น",
